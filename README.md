@@ -25,6 +25,9 @@ The script drops the unpacked bundle into `~/.gtkv/app` and a shim in
 `~/.gtkv/bin`. It will attempt to append that directory to your `PATH` (unless
 you opt out). Once installed, run `gtkv -h` to confirm everything works.
 
+The installer will prompt for the Python interpreter path used to launch gtkv
+(it should be a Python with GTK4 + PyGObject installed).
+
 Installer flags of note:
 
 - `-v <x.y.z>`: install a specific tagged release (`v0.2.0`, etc.).

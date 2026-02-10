@@ -6,7 +6,13 @@ import subprocess
 import sys
 from typing import Sequence
 
-import gi
+try:
+    import gi
+except ModuleNotFoundError:
+    sys.stderr.write(
+        "Missing PyGObject (gi). Install GTK4 + PyGObject via your distro.\n"
+    )
+    sys.exit(1)
 
 gi.require_version("Gtk", "4.0")
 from gi.repository import Gtk

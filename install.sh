@@ -31,7 +31,7 @@ info() { echo -e "${MUTED}$1${NC}"; }
 die() { echo -e "${RED}$1${NC}" >&2; exit 1; }
 
 requested_version=${VERSION:-}
-binary_path=""
+bundle_path=""
 show_latest=false
 upgrade=false
 
@@ -56,7 +56,7 @@ while [[ $# -gt 0 ]]; do
       ;;
     -b|--binary)
       [[ -n "${2:-}" ]] || die "--binary requires a path"
-      binary_path="$2"
+      bundle_path="$2"
       shift 2
       ;;
     --version)
@@ -97,14 +97,14 @@ get_latest_version() {
 }
 
 if $show_latest; then
-  [[ "$upgrade" == false && -z "$binary_path" && -z "$requested_version" ]] || \
+  [[ "$upgrade" == false && -z "$bundle_path" && -z "$requested_version" ]] || \
     die "-v (no arg) cannot be combined with other options"
   get_latest_version
   exit 0
 fi
 
 if $upgrade; then
-  [[ -z "$binary_path" ]] || die "-u cannot be used with -b/--binary"
+  [[ -z "$bundle_path" ]] || die "-u cannot be used with -b/--binary"
   [[ -z "$requested_version" ]] || die "-u cannot be combined with -v"
   latest=$(get_latest_version)
   if command -v "$APP" >/dev/null 2>&1; then
@@ -120,12 +120,16 @@ fi
 
 mkdir -p "$INSTALL_DIR"
 
-if [[ -n "$binary_path" ]]; then
-  [[ -f "$binary_path" ]] || die "Binary not found: $binary_path"
-  info "Installing ${APP^^} from local binary"
+if [[ -n "$bundle_path" ]]; then
+  [[ -f "$bundle_path" ]] || die "Bundle not found: $bundle_path"
+  info "Installing ${APP^^} from local bundle"
+  tmp_dir=$(mktemp -d "${TMPDIR:-/tmp}/${APP}.XXXXXX")
+  tar -xzf "$bundle_path" -C "$tmp_dir"
+  [[ -f "$tmp_dir/${APP}/main.py" ]] || die "Archive missing ${APP}/main.py"
+  rm -rf "$APP_DIR"
   mkdir -p "$APP_DIR"
-  cp "$binary_path" "$INSTALL_DIR/$APP"
-  chmod 755 "$INSTALL_DIR/$APP"
+  mv "$tmp_dir/${APP}" "$APP_DIR"
+  rm -rf "$tmp_dir"
   installed_label="local"
 else
   raw_os=$(uname -s)
@@ -160,20 +164,37 @@ else
   tmp_dir=$(mktemp -d "${TMPDIR:-/tmp}/${APP}.XXXXXX")
   curl -# -L -o "$tmp_dir/$FILENAME" "$url"
   tar -xzf "$tmp_dir/$FILENAME" -C "$tmp_dir"
-  [[ -f "$tmp_dir/${APP}/${APP}" ]] || die "Archive missing ${APP}/${APP}"
+  [[ -f "$tmp_dir/${APP}/main.py" ]] || die "Archive missing ${APP}/main.py"
   rm -rf "$APP_DIR"
   mkdir -p "$APP_DIR"
   mv "$tmp_dir/${APP}" "$APP_DIR"
   rm -rf "$tmp_dir"
-
-  cat > "$INSTALL_DIR/$APP" <<EOF
-#!/usr/bin/env bash
-set -euo pipefail
-"${HOME}/.${APP}/app/${APP}/${APP}" "\$@"
-EOF
-  chmod 755 "$INSTALL_DIR/$APP"
   installed_label="$version_label"
 fi
+
+python_default=""
+if [[ -f "$APP_HOME/python-path" ]]; then
+  python_default=$(cat "$APP_HOME/python-path")
+fi
+
+info "Enter the Python path to run ${APP^^} (GTK4 + PyGObject required)."
+read -r -p "Python path [${python_default:-python3}]: " python_path
+python_path=${python_path:-${python_default:-python3}}
+
+if [[ "$python_path" != "python3" && "$python_path" != "python" ]]; then
+  [[ -x "$python_path" ]] || die "Python not found or not executable: $python_path"
+fi
+
+mkdir -p "$APP_HOME"
+printf '%s\n' "$python_path" > "$APP_HOME/python-path"
+
+cat > "$INSTALL_DIR/$APP" <<EOF
+#!/usr/bin/env bash
+set -euo pipefail
+PY_PATH="$(cat "$APP_HOME/python-path")"
+"$PY_PATH" "${HOME}/.${APP}/app/${APP}/main.py" "\$@"
+EOF
+chmod 755 "$INSTALL_DIR/$APP"
 
 maybe_add_path() {
   local command=$1
