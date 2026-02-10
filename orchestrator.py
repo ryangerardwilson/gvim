@@ -15,6 +15,10 @@ from html.parser import HTMLParser
 from pathlib import Path
 from typing import Optional, cast
 
+import gi
+
+gi.require_version("Gdk", "4.0")
+gi.require_version("Gtk", "4.0")
 from gi.repository import Gdk, GdkPixbuf, Gio, GLib, Gtk  # type: ignore
 
 from config import AppConfig
