@@ -176,33 +176,15 @@ else
   installed_label="$version_label"
 fi
 
-python_default=""
-if [[ -f "$CONFIG_FILE" ]]; then
-  python_default=$(sed -n 's/.*"python_path"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p' "$CONFIG_FILE")
-fi
-
-info "Enter the Python path to run ${APP^^} (GTK4 + PyGObject required)."
-read -r -p "Python path [${python_default:-python3}]: " python_path
-python_path=${python_path:-${python_default:-python3}}
-
-if [[ "$python_path" != "python3" && "$python_path" != "python" ]]; then
-  [[ -x "$python_path" ]] || die "Python not found or not executable: $python_path"
-fi
-
-mkdir -p "$CONFIG_DIR"
-cat > "$CONFIG_FILE" <<EOF
-{
-  "python_path": "${python_path}"
-}
-EOF
-
 cat > "$INSTALL_DIR/$APP" <<EOF
 #!/usr/bin/env bash
 set -euo pipefail
-PY_PATH="$(sed -n 's/.*"python_path"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p' "$CONFIG_FILE")"
+PY_PATH=""
+if [[ -f "$CONFIG_FILE" ]]; then
+  PY_PATH="$(sed -n 's/.*"python_path"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p' "$CONFIG_FILE")"
+fi
 if [[ -z "$PY_PATH" ]]; then
-  echo "Missing python_path in $CONFIG_FILE" >&2
-  exit 1
+  PY_PATH="python3"
 fi
 "$PY_PATH" "${HOME}/.${APP}/app/${APP}/main.py" "\$@"
 EOF
