@@ -8,10 +8,7 @@ from dataclasses import dataclass
 class AppConfig:
     """Runtime configuration for the editor."""
 
-    theme: str = "default"
-    config_path: str | None = None
     startup_file: str | None = None
-    file_selector: str = "o"
     save_extension: str | None = "gtkv.html"
     cache_max_bytes: int = 200 * 1024 * 1024
     cache_max_files: int = 2000

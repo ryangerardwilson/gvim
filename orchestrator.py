@@ -120,11 +120,10 @@ class Orchestrator:
         return key_name.lower() == "s" and bool(state & Gdk.ModifierType.CONTROL_MASK)
 
     def _open_image_chooser(self) -> None:
-        if self._config.file_selector.lower() == "o":
-            if self._begin_image_selector_o():
-                if self._text_view:
-                    self._text_view.grab_focus()
-                return
+        if self._begin_image_selector_o():
+            if self._text_view:
+                self._text_view.grab_focus()
+            return
         self._open_image_selector_gtk()
 
     def _open_image_selector_gtk(self) -> None:
@@ -510,9 +509,8 @@ class Orchestrator:
 
     def _handle_save_request(self) -> None:
         target = self._state.file_path
-        if target is None and self._config.file_selector.lower() == "o":
-            if self._begin_save_selector_o():
-                return
+        if target is None and self._begin_save_selector_o():
+            return
         if target is None:
             self._prompt_for_save_path()
             return

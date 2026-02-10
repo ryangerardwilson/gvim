@@ -25,10 +25,6 @@ The script drops the unpacked bundle into `~/.gtkv/app` and a shim in
 `~/.gtkv/bin`. It will attempt to append that directory to your `PATH` (unless
 you opt out). Once installed, run `gtkv -h` to confirm everything works.
 
-On first run, gtkv will prompt for the Python interpreter path used to launch
-the app (it should be a Python with GTK4 + PyGObject installed). The chosen path
-is stored in `${XDG_CONFIG_HOME:-~/.config}/gtkv/config.json`.
-
 Installer flags of note:
 
 - `-v <x.y.z>`: install a specific tagged release (`v0.2.0`, etc.).
@@ -72,5 +68,5 @@ git tag v0.4.0
 git push origin v0.4.0
 ```
 
-GitHub Actions builds a PyInstaller bundle (`gtkv-linux-x64.tar.gz`), updates
+GitHub Actions builds a source bundle (`gtkv-linux-x64.tar.gz`), updates
 `_version.py`, and publishes the asset alongside the tagged release.
