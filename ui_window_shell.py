@@ -53,7 +53,7 @@ class WindowShell:
         settings = Gtk.Settings.get_default()
         if settings is not None:
             try:
-                settings.set_property("gtk-cursor-aspect-ratio", 1.0)
+                settings.set_property("gtk-cursor-aspect-ratio", 0.9)
             except (TypeError, ValueError):
                 pass
 

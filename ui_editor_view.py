@@ -10,7 +10,8 @@ import gi
 
 gi.require_version("Gdk", "4.0")
 gi.require_version("Gtk", "4.0")
-from gi.repository import Gdk, GdkPixbuf, GLib, Gtk  # type: ignore
+gi.require_version("Pango", "1.0")
+from gi.repository import Gdk, GdkPixbuf, GLib, Gtk, Pango  # type: ignore
 
 from editor_document import DocumentModel
 from editor_segments import ImageSegment, Segment, TextSegment
@@ -33,6 +34,7 @@ class EditorView:
         self._window = window
         self._inline_images: dict[Gtk.TextChildAnchor, InlineImageNode] = {}
         self._document: DocumentModel | None = None
+        self._cursor_mode: str = "insert"
 
         scroller = Gtk.ScrolledWindow()
         scroller.set_hexpand(True)
@@ -45,9 +47,26 @@ class EditorView:
         self._text_view = text_view
         scroller.set_child(text_view)
 
+        overlay = Gtk.Overlay()
+        overlay.set_hexpand(True)
+        overlay.set_vexpand(True)
+        overlay.set_child(scroller)
+        self._overlay = overlay
+
+        cursor_layer = Gtk.DrawingArea()
+        cursor_layer.set_hexpand(True)
+        cursor_layer.set_vexpand(True)
+        cursor_layer.set_can_target(False)
+        cursor_layer.set_draw_func(self._draw_cursor)
+        overlay.add_overlay(cursor_layer)
+        self._cursor_layer = cursor_layer
+
+        buffer = text_view.get_buffer()
+        buffer.connect("mark-set", self._on_buffer_mark_set)
+
     @property
     def widget(self) -> Gtk.Widget:
-        return self._scroller
+        return self._overlay
 
     def add_key_controller(self, controller: Gtk.EventControllerKey) -> None:
         self._text_view.add_controller(controller)
@@ -57,6 +76,11 @@ class EditorView:
 
     def set_editable(self, editable: bool) -> None:
         self._text_view.set_editable(editable)
+
+    def set_cursor_mode(self, mode: str) -> None:
+        self._cursor_mode = mode
+        self._text_view.set_cursor_visible(mode == "insert")
+        self._queue_cursor_draw()
 
     def set_text(self, text: str) -> None:
         buffer = self._text_view.get_buffer()
@@ -170,6 +194,7 @@ class EditorView:
         self._document = document
         document.add_listener(lambda doc: self.load_segments(doc.get_segments()))
         self.load_segments(document.get_segments())
+        self._queue_cursor_draw()
 
     def get_cursor_offset(self) -> int:
         buffer = self._text_view.get_buffer()
@@ -182,12 +207,14 @@ class EditorView:
         buffer.select_range(insert_iter, insert_iter)
         if self._document:
             self._document.clear_selection()
+        self._queue_cursor_draw()
 
     def begin_visual_selection(self) -> None:
         if not self._document:
             return
         offset = self.get_cursor_offset()
         self._document.set_selection(offset, offset)
+        self._queue_cursor_draw()
 
     def move_cursor(self, direction: str, extend_selection: bool) -> bool:
         buffer = self._text_view.get_buffer()
@@ -225,7 +252,51 @@ class EditorView:
                 self._document.clear_selection()
 
         self._text_view.scroll_to_iter(new_iter, 0.2, False, 0.0, 0.0)
+        self._queue_cursor_draw()
         return True
+
+    def _on_buffer_mark_set(self, _buffer: Gtk.TextBuffer, _iter: Gtk.TextIter, _mark: Gtk.TextMark) -> None:
+        self._queue_cursor_draw()
+
+    def _queue_cursor_draw(self) -> None:
+        self._cursor_layer.queue_draw()
+
+    def _draw_cursor(self, _area: Gtk.DrawingArea, ctx, _width: int, _height: int) -> None:
+        if self._cursor_mode == "insert":
+            return
+        rect = self._compute_cursor_rect()
+        if rect is None:
+            return
+        x, y, w, h = rect
+        ctx.set_source_rgba(1.0, 1.0, 1.0, 0.6)
+        ctx.rectangle(x, y, w, h)
+        ctx.fill()
+
+    def _compute_cursor_rect(self) -> tuple[float, float, float, float] | None:
+        buffer = self._text_view.get_buffer()
+        insert_iter = buffer.get_iter_at_mark(buffer.get_insert())
+        location = self._text_view.get_iter_location(insert_iter)
+        if location.width == 0 and location.height == 0:
+            return None
+        x, y = self._text_view.buffer_to_window_coords(
+            Gtk.TextWindowType.TEXT,
+            location.x,
+            location.y,
+        )
+        translated = self._text_view.translate_coordinates(self._overlay, x, y)
+        if translated is None:
+            return None
+        x, y = translated
+        cell_width = self._get_cell_width()
+        if cell_width <= 0:
+            cell_width = max(1.0, float(location.width))
+        return float(x), float(y), float(cell_width), float(location.height)
+
+    def _get_cell_width(self) -> float:
+        context = self._text_view.get_pango_context()
+        desc = context.get_font_description()
+        metrics = context.get_metrics(desc, context.get_language())
+        return metrics.get_approximate_char_width() / Pango.SCALE
 
     def _build_inline_image_widget(self, path: Path) -> Gtk.Widget:
         stack = Gtk.Stack()
