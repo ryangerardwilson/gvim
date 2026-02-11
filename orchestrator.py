@@ -18,6 +18,7 @@ from gi.repository import Gdk, Gio, GLib, Gtk  # type: ignore
 from config import AppConfig
 from editor_command_controller import CommandController
 from editor_command_parser import parse_ex_command
+from editor_document import DocumentModel
 from editor_mode_router import ModeRouter
 from editor_segments import Segment
 from editor_state import EditorState
@@ -35,6 +36,7 @@ class Orchestrator:
         self._window = window
         self._config = config
         self._state = EditorState()
+        self._document = DocumentModel()
         self._mode_router = ModeRouter(
             self._state,
             on_mode_change=self.set_mode,
@@ -65,6 +67,7 @@ class Orchestrator:
             on_focus_editor=self._shell.editor_view.grab_focus,
         )
         self._command_controller.bind()
+        self._shell.editor_view.set_document(self._document)
 
     def _connect_events(self) -> None:
         if not self._shell:
@@ -355,7 +358,7 @@ class Orchestrator:
                 contents = path.read_text(encoding="utf-8")
             except FileNotFoundError:
                 contents = ""
-            self._shell.editor_view.set_text(contents)
+            self._document.set_text(contents)
 
     def save_document(self, path: Optional[Path] = None) -> None:
         if not self._shell:
@@ -363,6 +366,7 @@ class Orchestrator:
         target = path or self._state.file_path
         if not target:
             return
+        self._document.set_segments(self._shell.editor_view.extract_segments())
         target = self._ensure_gtkv_suffix(target, self._config.save_extension)
         html_text = self._build_gtkv_html()
         target.write_text(html_text, encoding="utf-8")
@@ -456,9 +460,7 @@ class Orchestrator:
         return build_html(segments)
 
     def _extract_document_segments(self) -> list[Segment]:
-        if not self._shell:
-            return []
-        return self._shell.editor_view.extract_segments()
+        return self._document.get_segments()
 
     def _load_gtkv_html(self, path: Path) -> None:
         if not self._shell:
@@ -468,7 +470,7 @@ class Orchestrator:
         except FileNotFoundError:
             contents = ""
         segments = parse_html(contents)
-        self._shell.editor_view.load_segments(segments)
+        self._document.set_segments(segments)
 
     def cleanup_cache(self) -> None:
         cleanup_image_cache(

@@ -12,6 +12,7 @@ gi.require_version("Gdk", "4.0")
 gi.require_version("Gtk", "4.0")
 from gi.repository import Gdk, GdkPixbuf, GLib, Gtk  # type: ignore
 
+from editor_document import DocumentModel
 from editor_segments import ImageSegment, Segment, TextSegment
 from services_image_cache import materialize_data_uri
 
@@ -160,6 +161,10 @@ class EditorView:
                     )
                     if anchor is not None:
                         GLib.idle_add(self._load_inline_image, anchor, image_path)
+
+    def set_document(self, document: DocumentModel) -> None:
+        document.add_listener(lambda doc: self.load_segments(doc.get_segments()))
+        self.load_segments(document.get_segments())
 
     def _build_inline_image_widget(self, path: Path) -> Gtk.Widget:
         stack = Gtk.Stack()
