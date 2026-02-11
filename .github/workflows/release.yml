@@ -66,12 +66,7 @@ jobs:
                 editor_segments.py editor_state.py logging_debug.py persistence_gtkv_html.py \
                 services_image_cache.py ui_command_pane.py ui_editor_view.py ui_status_controller.py \
                 ui_window_shell.py dist/gtkv/
-              if [ -f completions_gtkv.bash ]; then
-                cp -a completions_gtkv.bash dist/gtkv/
-              fi
-              if [ -d completions ]; then
-                cp -a completions dist/gtkv/
-              fi
+              cp -a completions_gtkv.bash dist/gtkv/
               tar -C dist -czf gtkv-linux-x64.tar.gz gtkv
 
             '
