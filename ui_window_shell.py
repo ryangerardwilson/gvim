@@ -7,6 +7,7 @@ gi.require_version("Gdk", "4.0")
 gi.require_version("Gtk", "4.0")
 from gi.repository import Gdk, Gtk  # type: ignore
 
+from config import AppConfig
 from ui_command_pane import CommandPane
 from ui_editor_view import EditorView
 
@@ -14,13 +15,14 @@ from ui_editor_view import EditorView
 class WindowShell:
     """Wraps window layout, status, and command pane."""
 
-    def __init__(self, window: Gtk.ApplicationWindow) -> None:
+    def __init__(self, window: Gtk.ApplicationWindow, config: AppConfig) -> None:
         self._window = window
+        self._config = config
         self._root = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=0)
 
         self._apply_transparent_theme()
 
-        self._editor_view = EditorView(window)
+        self._editor_view = EditorView(window, config)
         self._status_label = Gtk.Label(label="")
         self._status_label.set_xalign(0.0)
 

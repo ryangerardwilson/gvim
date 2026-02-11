@@ -57,7 +57,7 @@ class Orchestrator:
             self.load_document(Path(self._config.startup_file))
 
     def _build_ui(self) -> None:
-        self._shell = WindowShell(self._window)
+        self._shell = WindowShell(self._window, self._config)
         self._status_controller = StatusController(self._shell)
         self._status_controller.bind_state(self._state)
         self._command_controller = CommandController(

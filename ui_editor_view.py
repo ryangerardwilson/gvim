@@ -13,6 +13,7 @@ gi.require_version("Gtk", "4.0")
 gi.require_version("Pango", "1.0")
 from gi.repository import Gdk, GdkPixbuf, GLib, Gtk, Pango  # type: ignore
 
+from config import AppConfig
 from editor_document import DocumentModel
 from editor_segments import ImageSegment, Segment, TextSegment
 from services_image_cache import materialize_data_uri
@@ -32,8 +33,9 @@ class EditorView:
 
     MAX_COLS = 88
 
-    def __init__(self, window: Gtk.ApplicationWindow) -> None:
+    def __init__(self, window: Gtk.ApplicationWindow, config: AppConfig) -> None:
         self._window = window
+        self._config = config
         self._inline_images: dict[Gtk.TextChildAnchor, InlineImageNode] = {}
         self._document: DocumentModel | None = None
         self._cursor_mode: str = "insert"
@@ -49,6 +51,7 @@ class EditorView:
         text_view = Gtk.TextView()
         text_view.set_wrap_mode(Gtk.WrapMode.NONE)
         text_view.set_monospace(True)
+        self._apply_font(text_view)
         self._text_view = text_view
         scroller.set_child(text_view)
 
@@ -318,6 +321,30 @@ class EditorView:
         desc = context.get_font_description()
         metrics = context.get_metrics(desc, context.get_language())
         return metrics.get_approximate_char_width() / Pango.SCALE
+
+    def _apply_font(self, text_view: Gtk.TextView) -> None:
+        if not self._config.font_family and not self._config.font_size:
+            return
+        font_parts: list[str] = []
+        if self._config.font_family:
+            font_parts.append(f"font-family: {self._config.font_family};")
+        if self._config.font_size:
+            font_parts.append(f"font-size: {self._config.font_size}pt;")
+        css = f"""
+        textview.editor-font text {{
+            {' '.join(font_parts)}
+        }}
+        """
+        text_view.add_css_class("editor-font")
+        provider = Gtk.CssProvider()
+        provider.load_from_data(css.encode("utf-8"))
+        display = Gdk.Display.get_default()
+        if display:
+            Gtk.StyleContext.add_provider_for_display(
+                display,
+                provider,
+                Gtk.STYLE_PROVIDER_PRIORITY_APPLICATION,
+            )
 
     def _get_line_height(self) -> int:
         context = self._text_view.get_pango_context()
