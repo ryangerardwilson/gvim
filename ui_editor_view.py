@@ -96,6 +96,9 @@ class EditorView:
     def grab_focus(self) -> None:
         self._text_view.grab_focus()
 
+    def get_buffer(self) -> Gtk.TextBuffer:
+        return self._text_view.get_buffer()
+
     def set_editable(self, editable: bool) -> None:
         self._text_view.set_editable(editable)
 

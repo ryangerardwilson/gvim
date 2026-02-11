@@ -43,6 +43,7 @@ class Orchestrator:
             on_mode_change=self.set_mode,
             on_inline_delete=self._handle_inline_image_delete,
             on_move=self._handle_move,
+            on_append=self._handle_append,
         )
         self._command_controller: Optional[CommandController] = None
         self._status_controller: Optional[StatusController] = None
@@ -367,6 +368,18 @@ class Orchestrator:
         if not self._shell:
             return False
         return self._shell.editor_view.move_cursor(direction, extend_selection)
+
+    def _handle_append(self, key_name: str) -> None:
+        if not self._shell:
+            return
+        if key_name == "a":
+            self._shell.editor_view.move_cursor("l", False)
+        elif key_name == "A":
+            buffer = self._shell.editor_view.get_buffer()
+            end_iter = buffer.get_end_iter()
+            end_iter.set_line_offset(end_iter.get_chars_in_line())
+            buffer.place_cursor(end_iter)
+        self.set_mode("insert")
 
     def _set_status_hint(self, message: str) -> None:
         if not self._status_controller:
