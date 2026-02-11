@@ -52,6 +52,9 @@ class CommandPane:
     def clear(self) -> None:
         self._entry.set_text("")
 
+    def set_text(self, text: str) -> None:
+        self._entry.set_text(text)
+
     def get_text(self) -> str:
         return self._entry.get_text()
 
