@@ -4,14 +4,20 @@ from __future__ import annotations
 from collections.abc import Callable
 
 
+MoveHandler = Callable[[str, bool], bool]
+
+
 def handle_key(
     key_name: str,
     on_mode_change: Callable[[str], None],
     on_inline_delete: Callable[[str], bool],
+    on_move: MoveHandler | None = None,
 ) -> bool:
     if key_name == "Escape":
         on_mode_change("normal")
         return True
     if key_name in {"BackSpace", "Delete"}:
         return on_inline_delete(key_name)
+    if on_move and key_name in {"h", "j", "k", "l"}:
+        return on_move(key_name, False)
     return False

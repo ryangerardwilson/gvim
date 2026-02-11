@@ -15,16 +15,20 @@ class ModeRouter:
         state: EditorState,
         on_mode_change: Callable[[str], None],
         on_inline_delete: Callable[[str], bool],
+        on_move: Callable[[str, bool], bool],
     ) -> None:
         self._state = state
         self._on_mode_change = on_mode_change
         self._on_inline_delete = on_inline_delete
+        self._on_move = on_move
 
     def handle_key(self, key_name: str) -> bool:
         if self._state.mode == "normal":
-            return handle_normal_key(key_name, self._on_mode_change)
+            return handle_normal_key(key_name, self._on_mode_change, self._on_move)
         if self._state.mode == "insert":
-            return handle_insert_key(key_name, self._on_mode_change, self._on_inline_delete)
+            return handle_insert_key(
+                key_name, self._on_mode_change, self._on_inline_delete, self._on_move
+            )
         if self._state.mode == "visual":
-            return handle_visual_key(key_name, self._on_mode_change)
+            return handle_visual_key(key_name, self._on_mode_change, self._on_move)
         return False

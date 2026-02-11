@@ -41,6 +41,7 @@ class Orchestrator:
             self._state,
             on_mode_change=self.set_mode,
             on_inline_delete=self._handle_inline_image_delete,
+            on_move=self._handle_move,
         )
         self._command_controller: Optional[CommandController] = None
         self._status_controller: Optional[StatusController] = None
@@ -305,6 +306,12 @@ class Orchestrator:
 
     def set_mode(self, mode: str) -> None:
         self._state.set_mode(mode)
+        if not self._shell:
+            return
+        if mode == "visual":
+            self._shell.editor_view.begin_visual_selection()
+        else:
+            self._shell.editor_view.clear_selection()
 
     def _handle_ex_command(self, text: str) -> bool:
         command, _args = parse_ex_command(text)
@@ -340,6 +347,11 @@ class Orchestrator:
         if not term:
             return True
         return self._shell.editor_view.search_next(term)
+
+    def _handle_move(self, direction: str, extend_selection: bool) -> bool:
+        if not self._shell:
+            return False
+        return self._shell.editor_view.move_cursor(direction, extend_selection)
 
     def _set_status_hint(self, message: str) -> None:
         if not self._status_controller:

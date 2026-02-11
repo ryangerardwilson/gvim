@@ -32,6 +32,7 @@ class EditorView:
     def __init__(self, window: Gtk.ApplicationWindow) -> None:
         self._window = window
         self._inline_images: dict[Gtk.TextChildAnchor, InlineImageNode] = {}
+        self._document: DocumentModel | None = None
 
         scroller = Gtk.ScrolledWindow()
         scroller.set_hexpand(True)
@@ -163,8 +164,65 @@ class EditorView:
                         GLib.idle_add(self._load_inline_image, anchor, image_path)
 
     def set_document(self, document: DocumentModel) -> None:
+        self._document = document
         document.add_listener(lambda doc: self.load_segments(doc.get_segments()))
         self.load_segments(document.get_segments())
+
+    def get_cursor_offset(self) -> int:
+        buffer = self._text_view.get_buffer()
+        insert_iter = buffer.get_iter_at_mark(buffer.get_insert())
+        return insert_iter.get_offset()
+
+    def clear_selection(self) -> None:
+        buffer = self._text_view.get_buffer()
+        insert_iter = buffer.get_iter_at_mark(buffer.get_insert())
+        buffer.select_range(insert_iter, insert_iter)
+        if self._document:
+            self._document.clear_selection()
+
+    def begin_visual_selection(self) -> None:
+        if not self._document:
+            return
+        offset = self.get_cursor_offset()
+        self._document.set_selection(offset, offset)
+
+    def move_cursor(self, direction: str, extend_selection: bool) -> bool:
+        buffer = self._text_view.get_buffer()
+        insert_iter = buffer.get_iter_at_mark(buffer.get_insert())
+        current_offset = insert_iter.get_offset()
+
+        new_iter = insert_iter.copy()
+        moved = False
+        if direction == "h":
+            moved = new_iter.backward_char()
+        elif direction == "l":
+            moved = new_iter.forward_char()
+        elif direction == "j":
+            moved = new_iter.forward_line()
+        elif direction == "k":
+            moved = new_iter.backward_line()
+        if not moved:
+            return False
+
+        buffer.place_cursor(new_iter)
+
+        if extend_selection:
+            anchor_offset = current_offset
+            if self._document:
+                sel_start, _sel_end = self._document.get_selection()
+                if sel_start is not None:
+                    anchor_offset = sel_start
+            anchor_iter = buffer.get_iter_at_offset(anchor_offset)
+            buffer.select_range(anchor_iter, new_iter)
+            if self._document:
+                self._document.set_selection(anchor_iter.get_offset(), new_iter.get_offset())
+        else:
+            buffer.select_range(new_iter, new_iter)
+            if self._document:
+                self._document.clear_selection()
+
+        self._text_view.scroll_to_iter(new_iter, 0.2, False, 0.0, 0.0)
+        return True
 
     def _build_inline_image_widget(self, path: Path) -> Gtk.Widget:
         stack = Gtk.Stack()
