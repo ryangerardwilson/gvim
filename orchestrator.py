@@ -51,11 +51,11 @@ class Orchestrator:
         self._connect_events()
         if self._config.startup_file:
             self.load_document(Path(self._config.startup_file))
-        self._update_status()
 
     def _build_ui(self) -> None:
         self._shell = WindowShell(self._window)
         self._status_controller = StatusController(self._shell)
+        self._status_controller.bind_state(self._state)
         self._command_controller = CommandController(
             pane=self._shell.command_pane,
             on_ex_command=self._handle_ex_command,
@@ -262,10 +262,12 @@ class Orchestrator:
                         self.insert_image(path)
                         if self._shell:
                             self._shell.editor_view.grab_focus()
-                        self._update_status()
+                        if self._status_controller:
+                            self._status_controller.refresh()
                 return False
             if time.monotonic() - start_time > 300:
-                self._update_status()
+                if self._status_controller:
+                    self._status_controller.refresh()
                 return False
             return True
 
@@ -291,15 +293,15 @@ class Orchestrator:
                     self._shell.editor_view.grab_focus()
                 return False
             if time.monotonic() - start_time > 300:
-                self._update_status()
+                if self._status_controller:
+                    self._status_controller.refresh()
                 return False
             return True
 
         GLib.timeout_add(200, _check)
 
     def set_mode(self, mode: str) -> None:
-        self._state.mode = mode
-        self._update_status()
+        self._state.set_mode(mode)
 
     def _handle_ex_command(self, text: str) -> bool:
         command, _args = parse_ex_command(text)
@@ -336,18 +338,13 @@ class Orchestrator:
             return True
         return self._shell.editor_view.search_next(term)
 
-    def _update_status(self) -> None:
-        if not self._status_controller:
-            return
-        self._status_controller.update_status(self._state.mode, self._state.file_path)
-
     def _set_status_hint(self, message: str) -> None:
         if not self._status_controller:
             return
         self._status_controller.set_hint(message)
 
     def load_document(self, path: Path) -> None:
-        self._state.file_path = path
+        self._state.set_file_path(path)
         if not self._shell:
             return
         if path.name.endswith(".gtkv.html"):
@@ -359,7 +356,6 @@ class Orchestrator:
             except FileNotFoundError:
                 contents = ""
             self._shell.editor_view.set_text(contents)
-        self._update_status()
 
     def save_document(self, path: Optional[Path] = None) -> None:
         if not self._shell:
@@ -370,8 +366,7 @@ class Orchestrator:
         target = self._ensure_gtkv_suffix(target, self._config.save_extension)
         html_text = self._build_gtkv_html()
         target.write_text(html_text, encoding="utf-8")
-        self._state.file_path = target
-        self._update_status()
+        self._state.set_file_path(target)
         if self._status_controller:
             self._status_controller.set_status_text(f"SAVED  {target.as_posix()}")
         self.cleanup_cache()

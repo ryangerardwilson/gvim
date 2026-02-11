@@ -5,6 +5,7 @@ from collections.abc import Callable
 
 from editor_commands_insert import handle_key as handle_insert_key
 from editor_commands_normal import handle_key as handle_normal_key
+from editor_commands_visual import handle_key as handle_visual_key
 from editor_state import EditorState
 
 
@@ -24,4 +25,6 @@ class ModeRouter:
             return handle_normal_key(key_name, self._on_mode_change)
         if self._state.mode == "insert":
             return handle_insert_key(key_name, self._on_mode_change, self._on_inline_delete)
+        if self._state.mode == "visual":
+            return handle_visual_key(key_name, self._on_mode_change)
         return False
