@@ -45,6 +45,7 @@ class EditorView:
         self._cursor_tag_range: tuple[int, int] | None = None
         self._suppress_insert_handler = False
         self._suppress_mark_handler = False
+        self._suppress_document_sync = False
 
         scroller = Gtk.ScrolledWindow()
         scroller.set_hexpand(True)
@@ -83,6 +84,7 @@ class EditorView:
 
         buffer.connect("mark-set", self._on_buffer_mark_set)
         buffer.connect("insert-text", self._on_buffer_insert_text)
+        buffer.connect("changed", self._on_buffer_changed)
 
     @property
     def widget(self) -> Gtk.Widget:
@@ -104,11 +106,15 @@ class EditorView:
 
     def set_text(self, text: str) -> None:
         buffer = self._text_view.get_buffer()
+        self._suppress_document_sync = True
         buffer.set_text(text)
+        self._suppress_document_sync = False
 
     def clear(self) -> None:
         buffer = self._text_view.get_buffer()
+        self._suppress_document_sync = True
         buffer.set_text("")
+        self._suppress_document_sync = False
 
     def insert_image(self, path: Path) -> None:
         """Insert an inline image node at the caret position."""
@@ -178,7 +184,7 @@ class EditorView:
             if current_iter.get_offset() < anchor_iter.get_offset():
                 text = buffer.get_text(current_iter, anchor_iter, True)
                 if text:
-                    segments.append(TextSegment(self._strip_sentinel_spaces(text)))
+                    segments.append(TextSegment(text))
             node = self._inline_images.get(anchor)
             if node:
                 data_uri = self._image_to_data_uri(node.path)
@@ -190,7 +196,7 @@ class EditorView:
         if current_iter.get_offset() < end_iter.get_offset():
             trailing = buffer.get_text(current_iter, end_iter, True)
             if trailing:
-                segments.append(TextSegment(self._strip_sentinel_spaces(trailing)))
+                segments.append(TextSegment(trailing))
 
         if not segments:
             segments.append(TextSegment(""))
@@ -198,6 +204,7 @@ class EditorView:
 
     def load_segments(self, segments: list[Segment]) -> None:
         buffer = self._text_view.get_buffer()
+        self._suppress_document_sync = True
         buffer.set_text("")
         self._inline_images.clear()
         for segment in segments:
@@ -212,7 +219,7 @@ class EditorView:
                     anchor = self._insert_inline_image_at_iter(image_path, end_iter, cols)
                     if anchor is not None:
                         GLib.idle_add(self._load_inline_image, anchor, image_path)
-        self._normalize_blank_lines()
+        self._suppress_document_sync = False
 
     def set_document(self, document: DocumentModel) -> None:
         self._document = document
@@ -245,6 +252,8 @@ class EditorView:
         insert_iter = buffer.get_iter_at_mark(buffer.get_insert())
         line_iter = insert_iter.copy()
         line_iter.set_line_offset(0)
+        if self._document:
+            self._document.set_cursor(line_iter.get_line(), 0)
         self._suppress_mark_handler = True
         try:
             buffer.place_cursor(line_iter)
@@ -259,6 +268,30 @@ class EditorView:
         buffer = self._text_view.get_buffer()
         insert_iter = buffer.get_iter_at_mark(buffer.get_insert())
         current_offset = insert_iter.get_offset()
+
+        if self._document and not self._text_view.get_editable():
+            dx = 0
+            dy = 0
+            if direction == "h":
+                dx = -1
+            elif direction == "l":
+                dx = 1
+            elif direction == "j":
+                dy = 1
+            elif direction == "k":
+                dy = -1
+            self._document.move_cursor(dx, dy, extend_selection)
+            row, col = self._document.get_cursor()
+            iter_at = self._get_iter_at_line_offset(buffer, row, col)
+            self._suppress_mark_handler = True
+            try:
+                buffer.place_cursor(iter_at)
+                buffer.select_range(iter_at, iter_at)
+            finally:
+                self._suppress_mark_handler = False
+            self._text_view.scroll_to_iter(iter_at, 0.2, False, 0.0, 0.0)
+            self._queue_cursor_draw()
+            return True
 
         new_iter = insert_iter.copy()
         moved = False
@@ -298,8 +331,7 @@ class EditorView:
         if not self._text_view.get_editable():
             if direction in {"j", "k"}:
                 self.snap_cursor_to_line_start()
-            self._ensure_line_has_space(new_iter.get_line())
-            return True
+                return True
         self._text_view.scroll_to_iter(new_iter, 0.2, False, 0.0, 0.0)
         self._queue_cursor_draw()
         return True
@@ -309,11 +341,26 @@ class EditorView:
             return
         if not self._text_view.get_editable():
             self.snap_cursor_to_line_start()
-            buffer = self._text_view.get_buffer()
-            insert_iter = buffer.get_iter_at_mark(buffer.get_insert())
-            self._ensure_line_has_space(insert_iter.get_line())
             return
         self._queue_cursor_draw()
+
+    def _on_buffer_changed(self, _buffer: Gtk.TextBuffer) -> None:
+        if self._suppress_document_sync or not self._document:
+            return
+        self._document.set_segments(self.extract_segments(), notify=False)
+
+    @staticmethod
+    def _get_iter_at_line_offset(
+        buffer: Gtk.TextBuffer, line: int, col: int
+    ) -> Gtk.TextIter:
+        iter_at = buffer.get_iter_at_line_offset(line, col)
+        if isinstance(iter_at, tuple):
+            for item in iter_at:
+                if hasattr(item, "set_line_offset"):
+                    return item
+        if hasattr(iter_at, "set_line_offset"):
+            return iter_at
+        return buffer.get_start_iter()
 
     def _queue_cursor_draw(self) -> None:
         self._update_cursor_block_tag()
@@ -498,58 +545,6 @@ class EditorView:
         height = (metrics.get_ascent() + metrics.get_descent()) / Pango.SCALE
         return max(1, int(height))
 
-    def _normalize_blank_lines(self) -> None:
-        buffer = self._text_view.get_buffer()
-        line_count = buffer.get_line_count()
-        self._suppress_insert_handler = True
-        self._suppress_mark_handler = True
-        try:
-            for line in range(line_count):
-                self._ensure_line_has_space(line)
-        finally:
-            self._suppress_mark_handler = False
-            self._suppress_insert_handler = False
-
-    def _ensure_line_has_space(self, line: int) -> None:
-        buffer = self._text_view.get_buffer()
-        start_iter = self._get_iter_at_line(buffer, line)
-        end_iter = start_iter.copy()
-        end_iter.forward_to_line_end()
-        line_text = buffer.get_text(start_iter, end_iter, True)
-        if line_text == "":
-            buffer.insert(end_iter, " ")
-
-    def _delete_line_sentinel_if_needed(
-        self, buffer: Gtk.TextBuffer, insert_iter: Gtk.TextIter, text: str
-    ) -> None:
-        if not text or text.startswith("\n"):
-            return
-        line = insert_iter.get_line()
-        start_iter = self._get_iter_at_line(buffer, line)
-        end_iter = start_iter.copy()
-        end_iter.forward_to_line_end()
-        line_text = buffer.get_text(start_iter, end_iter, True)
-        if line_text == " ":
-            buffer.delete(start_iter, end_iter)
-            insert_iter.set_line_offset(0)
-
-    @staticmethod
-    def _strip_sentinel_spaces(text: str) -> str:
-        parts = text.splitlines(keepends=True)
-        cleaned: list[str] = []
-        for part in parts:
-            if part.endswith("\n"):
-                content = part[:-1]
-                if content == " ":
-                    cleaned.append("\n")
-                else:
-                    cleaned.append(part)
-            else:
-                if part == " ":
-                    cleaned.append("")
-                else:
-                    cleaned.append(part)
-        return "".join(cleaned)
 
     @staticmethod
     def _get_iter_at_line(buffer: Gtk.TextBuffer, line: int) -> Gtk.TextIter:
@@ -574,7 +569,6 @@ class EditorView:
         self._suppress_insert_handler = True
         buffer.stop_emission_by_name("insert-text")
         try:
-            self._delete_line_sentinel_if_needed(buffer, insert_iter, text)
             line = insert_iter.get_line()
             line_text_len = insert_iter.get_chars_in_line()
             line_image_cols = self._get_image_cols_for_line(line)
@@ -585,14 +579,12 @@ class EditorView:
             for ch in text:
                 if ch == "\n":
                     out_chars.append("\n")
-                    out_chars.append(" ")
-                    col = 1
+                    col = 0
                     remaining_after = 0
                     continue
                 if col >= self.MAX_COLS or (remaining_after > 0 and col + remaining_after >= self.MAX_COLS):
                     out_chars.append("\n")
-                    out_chars.append(" ")
-                    col = 1
+                    col = 0
                     remaining_after = 0
                 out_chars.append(ch)
                 col += 1
