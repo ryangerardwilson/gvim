@@ -316,14 +316,14 @@ class Orchestrator:
         self._state.set_mode(mode)
         if not self._shell:
             return
+        if mode in {"normal", "visual"}:
+            self._shell.editor_view.sync_cursor_from_buffer()
         self._shell.editor_view.set_editable(mode == "insert")
         self._shell.editor_view.set_cursor_mode(mode)
         if mode == "visual":
             self._shell.editor_view.begin_visual_selection()
         else:
             self._shell.editor_view.clear_selection()
-        if mode in {"normal", "visual"}:
-            self._shell.editor_view.snap_cursor_to_line_start()
 
     def _handle_ex_command(self, text: str) -> bool:
         log_action(f"ex_command:{text}")

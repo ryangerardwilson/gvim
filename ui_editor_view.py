@@ -99,6 +99,13 @@ class EditorView:
     def set_editable(self, editable: bool) -> None:
         self._text_view.set_editable(editable)
 
+    def sync_cursor_from_buffer(self) -> None:
+        if not self._document:
+            return
+        buffer = self._text_view.get_buffer()
+        insert_iter = buffer.get_iter_at_mark(buffer.get_insert())
+        self._document.set_cursor(insert_iter.get_line(), insert_iter.get_line_offset())
+
     def set_cursor_mode(self, mode: str) -> None:
         self._cursor_mode = mode
         self._text_view.set_cursor_visible(False)
