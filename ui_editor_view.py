@@ -99,6 +99,9 @@ class EditorView:
     def get_buffer(self) -> Gtk.TextBuffer:
         return self._text_view.get_buffer()
 
+    def get_iter_at_line(self, buffer: Gtk.TextBuffer, line: int) -> Gtk.TextIter:
+        return self._get_iter_at_line(buffer, line)
+
     def set_editable(self, editable: bool) -> None:
         self._text_view.set_editable(editable)
 

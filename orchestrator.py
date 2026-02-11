@@ -44,6 +44,7 @@ class Orchestrator:
             on_inline_delete=self._handle_inline_image_delete,
             on_move=self._handle_move,
             on_append=self._handle_append,
+            on_open_line=self._handle_open_line,
         )
         self._command_controller: Optional[CommandController] = None
         self._status_controller: Optional[StatusController] = None
@@ -379,6 +380,28 @@ class Orchestrator:
             end_iter = buffer.get_end_iter()
             end_iter.set_line_offset(end_iter.get_chars_in_line())
             buffer.place_cursor(end_iter)
+        self.set_mode("insert")
+
+    def _handle_open_line(self, key_name: str) -> None:
+        if not self._shell:
+            return
+        buffer = self._shell.editor_view.get_buffer()
+        insert_iter = buffer.get_iter_at_mark(buffer.get_insert())
+        line = insert_iter.get_line()
+        if key_name == "o":
+            line_end = self._shell.editor_view.get_iter_at_line(buffer, line)
+            line_end.set_line_offset(line_end.get_chars_in_line())
+            buffer.insert(line_end, "\n")
+            new_iter = self._shell.editor_view.get_iter_at_line(buffer, line + 1)
+            new_iter.set_line_offset(0)
+        else:
+            line_start = self._shell.editor_view.get_iter_at_line(buffer, line)
+            line_start.set_line_offset(0)
+            buffer.insert(line_start, "\n")
+            new_iter = self._shell.editor_view.get_iter_at_line(buffer, line)
+            new_iter.set_line_offset(0)
+        buffer.place_cursor(new_iter)
+        buffer.select_range(new_iter, new_iter)
         self.set_mode("insert")
 
     def _set_status_hint(self, message: str) -> None:
