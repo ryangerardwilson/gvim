@@ -89,6 +89,23 @@ class EditorView:
             buffer.delete(target_iter, end_iter)
         return True
 
+    def search_next(self, term: str) -> bool:
+        if not term:
+            return False
+        buffer = self._text_view.get_buffer()
+        insert_iter = buffer.get_iter_at_mark(buffer.get_insert())
+        match = insert_iter.forward_search(term, 0, None)
+        if match is None:
+            start_iter = buffer.get_start_iter()
+            match = start_iter.forward_search(term, 0, None)
+        if match is None:
+            return False
+        match_start, match_end = match
+        buffer.select_range(match_start, match_end)
+        buffer.place_cursor(match_end)
+        self._text_view.scroll_to_iter(match_start, 0.2, False, 0.0, 0.0)
+        return True
+
     def extract_segments(self) -> list[Segment]:
         buffer = self._text_view.get_buffer()
         anchors = list(self._inline_images.keys())

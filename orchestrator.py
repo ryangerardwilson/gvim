@@ -16,6 +16,7 @@ gi.require_version("Gtk", "4.0")
 from gi.repository import Gdk, Gio, GLib, Gtk  # type: ignore
 
 from config import AppConfig
+from editor_command_parser import parse_ex_command
 from editor_mode_router import ModeRouter
 from editor_segments import Segment
 from editor_state import EditorState
@@ -37,6 +38,7 @@ class Orchestrator:
             on_mode_change=self.set_mode,
             on_inline_delete=self._handle_inline_image_delete,
         )
+        self._command_prefix: Optional[str] = None
 
         self._shell: Optional[WindowShell] = None
 
@@ -57,6 +59,7 @@ class Orchestrator:
         controller = Gtk.EventControllerKey()
         controller.connect("key-pressed", self._on_key_pressed)
         self._shell.editor_view.add_key_controller(controller)
+        self._shell.command_pane.connect_activate(self._on_command_activate)
 
     def _on_key_pressed(
         self,
@@ -71,6 +74,12 @@ class Orchestrator:
             return True
         if self._is_ctrl_s(state, key_name):
             self._handle_save_request()
+            return True
+        if self._state.mode == "normal" and key_name in {":", "colon"}:
+            self._show_command_pane(":")
+            return True
+        if self._state.mode == "normal" and key_name in {"/", "slash"}:
+            self._show_command_pane("/")
             return True
         return self._mode_router.handle_key(key_name)
 
@@ -259,6 +268,66 @@ class Orchestrator:
     def set_mode(self, mode: str) -> None:
         self._state.mode = mode
         self._update_status()
+
+    def _show_command_pane(self, prefix: str) -> None:
+        if not self._shell:
+            return
+        self._command_prefix = prefix
+        pane = self._shell.command_pane
+        pane.set_prefix(prefix)
+        pane.clear()
+        pane.set_hint("")
+        pane.set_visible(True)
+        pane.grab_focus()
+
+    def _hide_command_pane(self) -> None:
+        if not self._shell:
+            return
+        self._shell.command_pane.set_visible(False)
+        self._shell.editor_view.grab_focus()
+        self._command_prefix = None
+
+    def _on_command_activate(self, _entry) -> None:
+        if not self._shell:
+            return
+        pane = self._shell.command_pane
+        text = pane.get_text()
+        prefix = self._command_prefix or ":"
+        handled = False
+        if prefix == ":":
+            handled = self._handle_ex_command(text)
+        elif prefix == "/":
+            handled = self._handle_search_command(text)
+        if not handled:
+            self._set_status_hint("UNKNOWN COMMAND")
+        self._hide_command_pane()
+
+    def _handle_ex_command(self, text: str) -> bool:
+        command, _args = parse_ex_command(text)
+        if not command:
+            return True
+        if command in {"w", "write"}:
+            self._handle_save_request()
+            return True
+        if command in {"q", "quit"}:
+            self._application.quit()
+            return True
+        if command in {"wq", "x"}:
+            self._handle_save_request()
+            self._application.quit()
+            return True
+        return False
+
+    def _handle_search_command(self, text: str) -> bool:
+        if not self._shell:
+            return False
+        term = text.strip()
+        if not term:
+            return True
+        found = self._shell.editor_view.search_next(term)
+        if not found:
+            self._set_status_hint("NOT FOUND")
+        return True
 
     def _update_status(self) -> None:
         if not self._shell:
