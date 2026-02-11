@@ -26,6 +26,7 @@ class InlineImageNode:
     path: Path
     status: str
     widget: Gtk.Widget
+    cols: int
 
 
 class EditorView:
@@ -111,7 +112,8 @@ class EditorView:
         buffer = self._text_view.get_buffer()
         insert_iter = buffer.get_iter_at_mark(buffer.get_insert())
         insert_iter = self._ensure_image_fits_line(buffer, insert_iter, path)
-        anchor = self._insert_inline_image_at_iter(path, insert_iter)
+        cols = self._estimate_image_cols(path)
+        anchor = self._insert_inline_image_at_iter(path, insert_iter, cols)
         after_iter = insert_iter.copy()
         if after_iter.forward_char():
             buffer.place_cursor(after_iter)
@@ -203,7 +205,8 @@ class EditorView:
                 if image_path:
                     end_iter = buffer.get_end_iter()
                     end_iter = self._ensure_image_fits_line(buffer, end_iter, image_path)
-                    anchor = self._insert_inline_image_at_iter(image_path, end_iter)
+                    cols = self._estimate_image_cols(image_path)
+                    anchor = self._insert_inline_image_at_iter(image_path, end_iter, cols)
                     if anchor is not None:
                         GLib.idle_add(self._load_inline_image, anchor, image_path)
 
@@ -365,16 +368,23 @@ class EditorView:
         self._suppress_insert_handler = True
         buffer.stop_emission_by_name("insert-text")
         try:
-            col = insert_iter.get_line_offset()
+            line = insert_iter.get_line()
+            line_text_len = insert_iter.get_chars_in_line()
+            line_image_cols = self._get_image_cols_for_line(line)
+            line_total_cols = line_text_len + line_image_cols
+            remaining_after = line_total_cols - self._get_visual_col_at_iter(insert_iter)
+            col = self._get_visual_col_at_iter(insert_iter)
             out_chars: list[str] = []
             for ch in text:
                 if ch == "\n":
                     out_chars.append(ch)
                     col = 0
+                    remaining_after = 0
                     continue
-                if col >= self.MAX_COLS:
+                if col >= self.MAX_COLS or (remaining_after > 0 and col + remaining_after >= self.MAX_COLS):
                     out_chars.append("\n")
                     col = 0
+                    remaining_after = 0
                 out_chars.append(ch)
                 col += 1
             buffer.insert(insert_iter, "".join(out_chars))
@@ -452,13 +462,18 @@ class EditorView:
         return stack
 
     def _insert_inline_image_at_iter(
-        self, path: Path, insert_iter: Gtk.TextIter
+        self, path: Path, insert_iter: Gtk.TextIter, cols: int
     ) -> Gtk.TextChildAnchor | None:
         buffer = self._text_view.get_buffer()
         anchor = buffer.create_child_anchor(insert_iter)
         widget = self._build_inline_image_widget(path)
         self._text_view.add_child_at_anchor(widget, anchor)
-        self._inline_images[anchor] = InlineImageNode(path=path, status="loading", widget=widget)
+        self._inline_images[anchor] = InlineImageNode(
+            path=path,
+            status="loading",
+            widget=widget,
+            cols=cols,
+        )
         return anchor
 
     def _load_inline_image(self, anchor: Gtk.TextChildAnchor, path: Path) -> bool:
@@ -505,20 +520,54 @@ class EditorView:
                 max_width = min(max_width, max_cols_width)
         return max_width
 
-    def _ensure_image_fits_line(
-        self, buffer: Gtk.TextBuffer, insert_iter: Gtk.TextIter, path: Path
-    ) -> Gtk.TextIter:
+    def _estimate_image_cols(self, path: Path) -> int:
         cell_width = self._get_cell_width()
         if cell_width <= 0:
-            return insert_iter
+            return 1
         try:
             pixbuf = GdkPixbuf.Pixbuf.new_from_file(path.as_posix())
         except (GLib.Error, OSError):
-            return insert_iter
+            return 1
         max_width = self._get_image_max_width()
         scaled_width = min(pixbuf.get_width(), max_width)
-        image_cols = max(1, int((scaled_width + cell_width - 1) // cell_width))
-        current_col = insert_iter.get_line_offset()
+        return max(1, int((scaled_width + cell_width - 1) // cell_width))
+
+    def _get_image_cols_for_line(self, line: int) -> int:
+        buffer = self._text_view.get_buffer()
+        cols = 0
+        for anchor, node in self._inline_images.items():
+            try:
+                iter_at = buffer.get_iter_at_child_anchor(anchor)
+            except Exception:
+                continue
+            if iter_at.get_line() == line:
+                cols += max(1, node.cols)
+        return cols
+
+    def _get_image_cols_before_iter(self, iter_at: Gtk.TextIter) -> int:
+        buffer = self._text_view.get_buffer()
+        cols = 0
+        line = iter_at.get_line()
+        offset = iter_at.get_offset()
+        for anchor, node in self._inline_images.items():
+            try:
+                anchor_iter = buffer.get_iter_at_child_anchor(anchor)
+            except Exception:
+                continue
+            if anchor_iter.get_line() == line and anchor_iter.get_offset() <= offset:
+                cols += max(1, node.cols)
+        return cols
+
+    def _get_visual_col_at_iter(self, iter_at: Gtk.TextIter) -> int:
+        text_col = iter_at.get_line_offset()
+        image_cols = self._get_image_cols_before_iter(iter_at)
+        return text_col + image_cols
+
+    def _ensure_image_fits_line(
+        self, buffer: Gtk.TextBuffer, insert_iter: Gtk.TextIter, path: Path
+    ) -> Gtk.TextIter:
+        image_cols = self._estimate_image_cols(path)
+        current_col = self._get_visual_col_at_iter(insert_iter)
         remaining = self.MAX_COLS - current_col
         if current_col > 0 and image_cols > remaining:
             buffer.insert(insert_iter, "\n")
