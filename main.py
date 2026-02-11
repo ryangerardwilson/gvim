@@ -84,6 +84,24 @@ def _run_upgrade() -> int:
     return bash_rc
 
 
+def _get_version() -> str:
+    if __version__ and __version__ != "0.0.0":
+        return __version__
+    try:
+        result = subprocess.run(
+            ["git", "describe", "--tags", "--always"],
+            check=False,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.DEVNULL,
+            text=True,
+        )
+    except FileNotFoundError:
+        return __version__
+    if result.returncode == 0:
+        return result.stdout.strip() or __version__
+    return __version__
+
+
 def build_application(config: AppConfig):
     import gi  # type: ignore
 
@@ -117,7 +135,7 @@ def main(argv: Sequence[str] | None = None) -> int:
     config, gtk_args = parse_args(args)
     setup_debug_logging(config.debug, Path("debug.log"))
     if config.show_version:
-        print(__version__)
+        print(_get_version())
         return 0
     if config.upgrade:
         return _run_upgrade()
