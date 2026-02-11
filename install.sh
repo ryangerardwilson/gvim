@@ -218,8 +218,8 @@ info "Run: ${APP} -h"
 if [[ -n "${BASH_VERSION:-}" ]]; then
   completion_dir="${XDG_CONFIG_HOME:-$HOME/.config}/bash_completion.d"
   mkdir -p "$completion_dir"
-  if [[ -f "${HOME}/.${APP}/app/${APP}/completions/gtkv.bash" ]]; then
-    cp "${HOME}/.${APP}/app/${APP}/completions/gtkv.bash" "$completion_dir/gtkv"
+  if [[ -f "${HOME}/.${APP}/app/${APP}/completions_gtkv.bash" ]]; then
+    cp "${HOME}/.${APP}/app/${APP}/completions_gtkv.bash" "$completion_dir/gtkv"
     info "Installed bash completion to $completion_dir/gtkv"
   fi
   if [[ -w "$HOME/.bashrc" ]]; then

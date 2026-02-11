@@ -3,15 +3,12 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 import base64
-import hashlib
-import html
 import mimetypes
 import os
 import shlex
 import shutil
 import subprocess
 import time
-from html.parser import HTMLParser
 from pathlib import Path
 from typing import Optional, cast
 
@@ -22,14 +19,12 @@ gi.require_version("Gtk", "4.0")
 from gi.repository import Gdk, GdkPixbuf, Gio, GLib, Gtk  # type: ignore
 
 from config import AppConfig
-
-
-@dataclass
-class EditorState:
-    """Minimal editor state placeholder for Vim-like mode handling."""
-
-    mode: str = "normal"
-    file_path: Optional[Path] = None
+from editor_mode_router import ModeRouter
+from editor_segments import ImageSegment, Segment, TextSegment
+from editor_state import EditorState
+from persistence_gtkv_html import build_html, parse_html
+from services_image_cache import cleanup_cache as cleanup_image_cache
+from services_image_cache import materialize_data_uri
 
 
 @dataclass
@@ -49,6 +44,11 @@ class Orchestrator:
         self._window = window
         self._config = config
         self._state = EditorState()
+        self._mode_router = ModeRouter(
+            self._state,
+            on_mode_change=self.set_mode,
+            on_inline_delete=self._handle_inline_image_delete,
+        )
 
         self._root: Optional[Gtk.Box] = None
         self._text_view: Optional[Gtk.TextView] = None
@@ -107,11 +107,7 @@ class Orchestrator:
         if self._is_ctrl_s(state, key_name):
             self._handle_save_request()
             return True
-        if self._state.mode == "normal":
-            return self._handle_normal_mode(key_name)
-        if self._state.mode == "insert":
-            return self._handle_insert_mode(key_name)
-        return False
+        return self._mode_router.handle_key(key_name)
 
     def _is_ctrl_i(self, state: Gdk.ModifierType, key_name: str) -> bool:
         return key_name.lower() == "i" and bool(state & Gdk.ModifierType.CONTROL_MASK)
@@ -294,23 +290,6 @@ class Orchestrator:
             return True
 
         GLib.timeout_add(200, _check)
-
-    def _handle_normal_mode(self, key_name: str) -> bool:
-        if key_name == "i":
-            self.set_mode("insert")
-            return True
-        if key_name == ":":
-            # Placeholder for command-line mode.
-            return True
-        return False
-
-    def _handle_insert_mode(self, key_name: str) -> bool:
-        if key_name == "Escape":
-            self.set_mode("normal")
-            return True
-        if key_name in {"BackSpace", "Delete"}:
-            return self._handle_inline_image_delete(key_name)
-        return False
 
     def set_mode(self, mode: str) -> None:
         self._state.mode = mode
@@ -577,34 +556,10 @@ class Orchestrator:
         return Path(f"{path.as_posix()}.{extension}")
 
     def _build_gtkv_html(self) -> str:
-        segments: list[tuple[str, str | tuple[str, str]]] = self._extract_document_segments()
-        body_parts: list[str] = []
-        for kind, payload in segments:
-            if kind == "text":
-                escaped = html.escape(cast(str, payload))
-                body_parts.append(f"<pre class=\"text\">{escaped}</pre>")
-            elif kind == "image":
-                data_uri, alt = cast(tuple[str, str], payload)
-                body_parts.append(
-                    f"<img src=\"{data_uri}\" alt=\"{html.escape(alt)}\" />"
-                )
-        body = "\n".join(body_parts)
-        return (
-            "<!DOCTYPE html>\n"
-            "<html>\n"
-            "<head>\n"
-            "  <meta charset=\"utf-8\" />\n"
-            "  <title>GTKV Document</title>\n"
-            "  <style>body{font-family:monospace;white-space:normal;}"
-            "pre.text{font-family:monospace;white-space:pre-wrap;}</style>\n"
-            "</head>\n"
-            "<body>\n"
-            f"{body}\n"
-            "</body>\n"
-            "</html>\n"
-        )
+        segments = self._extract_document_segments()
+        return build_html(segments)
 
-    def _extract_document_segments(self) -> list[tuple[str, str | tuple[str, str]]]:
+    def _extract_document_segments(self) -> list[Segment]:
         if not self._text_view:
             return []
         buffer = self._text_view.get_buffer()
@@ -619,7 +574,7 @@ class Orchestrator:
         anchor_positions.sort(key=lambda item: item[0])
 
         start_iter = buffer.get_start_iter()
-        segments: list[tuple[str, str | tuple[str, str]]] = []
+        segments: list[Segment] = []
         current_iter = start_iter.copy()
 
         for offset, anchor in anchor_positions:
@@ -627,22 +582,22 @@ class Orchestrator:
             if current_iter.get_offset() < anchor_iter.get_offset():
                 text = buffer.get_text(current_iter, anchor_iter, True)
                 if text:
-                    segments.append(("text", text))
+                    segments.append(TextSegment(text))
             node = self._inline_images.get(anchor)
             if node:
                 data_uri = self._image_to_data_uri(node.path)
                 if data_uri:
-                    segments.append(("image", (data_uri, node.path.name)))
+                    segments.append(ImageSegment(data_uri, node.path.name))
             current_iter = anchor_iter.copy()
 
         end_iter = buffer.get_end_iter()
         if current_iter.get_offset() < end_iter.get_offset():
             trailing = buffer.get_text(current_iter, end_iter, True)
             if trailing:
-                segments.append(("text", trailing))
+                segments.append(TextSegment(trailing))
 
         if not segments:
-            segments.append(("text", ""))
+            segments.append(TextSegment(""))
         return segments
 
     def _image_to_data_uri(self, path: Path) -> str | None:
@@ -661,18 +616,16 @@ class Orchestrator:
             return
         buffer = self._text_view.get_buffer()
         buffer.set_text("")
-        parser = _GTKVHTMLParser()
         try:
             contents = path.read_text(encoding="utf-8")
         except FileNotFoundError:
             contents = ""
-        parser.feed(contents)
-        for token in parser.tokens:
-            if token[0] == "text":
-                buffer.insert(buffer.get_end_iter(), token[1])
-            elif token[0] == "image":
-                data_uri = token[1]
-                image_path = self._materialize_data_uri(data_uri)
+        segments = parse_html(contents)
+        for segment in segments:
+            if isinstance(segment, TextSegment):
+                buffer.insert(buffer.get_end_iter(), segment.text)
+            elif isinstance(segment, ImageSegment):
+                image_path = materialize_data_uri(segment.data_uri)
                 if image_path:
                     anchor = self._insert_inline_image_at_iter(
                         image_path, buffer.get_end_iter()
@@ -680,140 +633,13 @@ class Orchestrator:
                     if anchor is not None:
                         GLib.idle_add(self._load_inline_image, anchor, image_path)
 
-    def _materialize_data_uri(self, data_uri: str) -> Path | None:
-        if not data_uri.startswith("data:"):
-            return None
-        header, _, payload = data_uri.partition(",")
-        if ";base64" not in header:
-            return None
-        mime = header[5:].split(";")[0] if header.startswith("data:") else ""
-        ext = self._extension_for_mime(mime)
-        try:
-            data = base64.b64decode(payload)
-        except (ValueError, OSError):
-            return None
-        digest = hashlib.sha1(data).hexdigest()
-        cache_root = os.environ.get("XDG_CACHE_HOME", os.path.expanduser("~/.cache"))
-        cache_dir = Path(cache_root) / "n" / "inline-images"
-        try:
-            cache_dir.mkdir(parents=True, exist_ok=True)
-        except OSError:
-            return None
-        target = cache_dir / f"inline-{digest}.{ext}"
-        if not target.exists():
-            try:
-                target.write_bytes(data)
-            except OSError:
-                return None
-        else:
-            try:
-                os.utime(target, None)
-            except OSError:
-                pass
-        return target
-
     def cleanup_cache(self) -> None:
-        cache_root = os.environ.get("XDG_CACHE_HOME", os.path.expanduser("~/.cache"))
-        cache_dir = Path(cache_root) / "n" / "inline-images"
-        if not cache_dir.exists():
-            return
-
-        try:
-            entries = [
-                entry
-                for entry in cache_dir.iterdir()
-                if entry.is_file() and entry.name.startswith("inline-")
-            ]
-        except OSError:
-            return
-
-        now = time.time()
-        max_age = self._config.cache_max_days * 86400
-        max_bytes = self._config.cache_max_bytes
-        max_files = self._config.cache_max_files
-
-        def _stat(entry: Path) -> tuple[float, int]:
-            try:
-                stat = entry.stat()
-                return stat.st_mtime, stat.st_size
-            except OSError:
-                return 0.0, 0
-
-        for entry in entries:
-            mtime, _size = _stat(entry)
-            if max_age > 0 and now - mtime > max_age:
-                try:
-                    entry.unlink()
-                except OSError:
-                    pass
-
-        try:
-            entries = [
-                entry
-                for entry in cache_dir.iterdir()
-                if entry.is_file() and entry.name.startswith("inline-")
-            ]
-        except OSError:
-            return
-
-        entries_with_stat: list[tuple[Path, float, int]] = []
-        total_bytes = 0
-        for entry in entries:
-            mtime, size = _stat(entry)
-            entries_with_stat.append((entry, mtime, size))
-            total_bytes += size
-
-        if (max_files and len(entries_with_stat) > max_files) or (
-            max_bytes and total_bytes > max_bytes
-        ):
-            entries_with_stat.sort(key=lambda item: item[1])
-            while entries_with_stat and (
-                (max_files and len(entries_with_stat) > max_files)
-                or (max_bytes and total_bytes > max_bytes)
-            ):
-                entry, _mtime, size = entries_with_stat.pop(0)
-                try:
-                    entry.unlink()
-                except OSError:
-                    pass
-                total_bytes -= size
+        cleanup_image_cache(
+            max_days=self._config.cache_max_days,
+            max_bytes=self._config.cache_max_bytes,
+            max_files=self._config.cache_max_files,
+        )
 
     def shutdown(self) -> None:
         """Shutdown hook for cleanup and persistence."""
         return
-
-    @staticmethod
-    def _extension_for_mime(mime: str) -> str:
-        mapping = {
-            "image/png": "png",
-            "image/jpeg": "jpg",
-            "image/jpg": "jpg",
-            "image/gif": "gif",
-            "image/bmp": "bmp",
-            "image/webp": "webp",
-        }
-        return mapping.get(mime, "png")
-
-
-class _GTKVHTMLParser(HTMLParser):
-    def __init__(self) -> None:
-        super().__init__()
-        self.tokens: list[tuple[str, str]] = []
-        self._in_pre = False
-
-    def handle_starttag(self, tag: str, attrs: list[tuple[str, str | None]]) -> None:
-        if tag == "pre":
-            self._in_pre = True
-        if tag == "img":
-            attrs_dict = {key: value for key, value in attrs}
-            src = attrs_dict.get("src")
-            if src:
-                self.tokens.append(("image", src))
-
-    def handle_endtag(self, tag: str) -> None:
-        if tag == "pre":
-            self._in_pre = False
-
-    def handle_data(self, data: str) -> None:
-        if self._in_pre and data:
-            self.tokens.append(("text", data))
