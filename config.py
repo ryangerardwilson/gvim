@@ -18,4 +18,4 @@ class AppConfig:
     upgrade: bool = False
     debug: bool = False
     font_family: str | None = None
-    font_size: int = 10
+    font_size: int = 11

@@ -329,11 +329,11 @@ class EditorView:
         if self._config.font_family:
             font_parts.append(f"font-family: {self._config.font_family};")
         if self._config.font_size:
-            font_parts.append(f"font-size: {self._config.font_size}pt;")
+            font_parts.append(f"font-size: {self._config.font_size}px;")
+        rules = " ".join(font_parts)
         css = f"""
-        textview.editor-font text {{
-            {' '.join(font_parts)}
-        }}
+        textview.editor-font {{ {rules} }}
+        textview.editor-font text {{ {rules} }}
         """
         text_view.add_css_class("editor-font")
         provider = Gtk.CssProvider()
