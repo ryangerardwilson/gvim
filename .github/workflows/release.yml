@@ -61,7 +61,8 @@ jobs:
               echo "__version__ = \"${VERSION}\"" > _version.py
               mkdir -p dist/gtkv
               cp -a main.py block_model.py block_view.py style.css persistence_sqlite.py \
-                _version.py AGENTS.md README.md completions_gtkv.bash dist/gtkv/
+                three_template.py three.module.min.js _version.py AGENTS.md README.md \
+                completions_gtkv.bash dist/gtkv/
               tar -C dist -czf gtkv-linux-x64.tar.gz gtkv
 
             '

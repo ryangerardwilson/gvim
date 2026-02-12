@@ -20,9 +20,10 @@ gi.require_version("Gdk", "4.0")
 from gi.repository import Gdk, GLib, Gtk
 
 from _version import __version__
-from block_model import BlockDocument, ImageBlock, TextBlock, sample_document
+from block_model import BlockDocument, ImageBlock, TextBlock, ThreeBlock, sample_document
 from block_view import BlockEditorView
 from persistence_sqlite import load_document, save_document
+from three_template import default_three_template
 
 
 INSTALL_SH_URL = (
@@ -79,6 +80,8 @@ class BlockApp(Gtk.Application):
                 return True
             if keyval in (ord("i"), ord("I")):
                 return self._begin_image_selector_o()
+            if keyval == ord("3"):
+                return self._insert_three_block()
             if keyval in (ord("s"), ord("S")):
                 return self._save_document()
 
@@ -105,31 +108,43 @@ class BlockApp(Gtk.Application):
             return True
 
         if keyval in (Gdk.KEY_Return, Gdk.KEY_KP_Enter):
-            return self._open_selected_text_block_editor()
+            return self._open_selected_block_editor()
 
         self._last_doc_key = None
         return False
 
-    def _open_selected_text_block_editor(self) -> bool:
+    def _open_selected_block_editor(self) -> bool:
         if self._view is None or self._document is None:
             return False
 
         if self._active_editor is not None:
             return True
 
-        if not self._view.selected_block_is_text():
-            return True
-
         index = self._view.get_selected_index()
         block = self._document.blocks[index]
-        if not isinstance(block, TextBlock):
-            return True
+        if isinstance(block, TextBlock):
+            return self._open_temp_editor(index, block.text, ".txt", "text")
+        if isinstance(block, ThreeBlock):
+            return self._open_temp_editor(index, block.source, ".html", "three")
+        return True
 
+    def _insert_three_block(self) -> bool:
+        if self._document is None or self._view is None:
+            return False
+        insert_at = self._view.get_selected_index()
+        self._document.insert_block_after(insert_at, ThreeBlock(default_three_template()))
+        self._view.set_document(self._document)
+        self._view.move_selection(1)
+        return self._open_selected_block_editor()
+
+    def _open_temp_editor(self, index: int, content: str, suffix: str, kind: str) -> bool:
+        if self._active_editor is not None:
+            return True
         temp = tempfile.NamedTemporaryFile(
-            prefix="gtkv-block-", suffix=".txt", delete=False
+            prefix="gtkv-block-", suffix=suffix, delete=False
         )
         temp_path = Path(temp.name)
-        temp.write(block.text.encode("utf-8"))
+        temp.write(content.encode("utf-8"))
         temp.flush()
         temp.close()
 
@@ -145,6 +160,7 @@ class BlockApp(Gtk.Application):
             "process": process,
             "path": temp_path,
             "index": index,
+            "kind": kind,
         }
 
         GLib.timeout_add(250, self._poll_for_editor_exit)
@@ -169,6 +185,7 @@ class BlockApp(Gtk.Application):
 
         path = self._active_editor["path"]
         index = self._active_editor["index"]
+        kind = self._active_editor.get("kind")
 
         if isinstance(path, Path) and isinstance(index, int):
             try:
@@ -176,7 +193,10 @@ class BlockApp(Gtk.Application):
             except OSError:
                 updated_text = None
             if updated_text is not None:
-                self._document.set_text_block(index, updated_text)
+                if kind == "three":
+                    self._document.set_three_block(index, updated_text)
+                else:
+                    self._document.set_text_block(index, updated_text)
                 self._view.set_document(self._document)
 
             try:
@@ -186,6 +206,7 @@ class BlockApp(Gtk.Application):
 
         self._active_editor = None
         return False
+
 
     def _begin_image_selector_o(self) -> bool:
         if self._document is None or self._view is None:

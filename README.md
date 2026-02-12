@@ -13,6 +13,8 @@ SQLite file.
 - PyGObject + GObject Introspection (for running from source).
 - A terminal Vim (`nvim`, `vim`, or `vi`).
 - Optional: the `o` file picker for image insertion.
+- Optional: WebKitGTK for 3D blocks.
+- Bundled: `three.module.min.js` is included for 3D blocks.
 
 ## Installation
 
@@ -56,6 +58,7 @@ python main.py
 - `gtkv doc.docv` — open an existing document.
 - `Ctrl+V` — append a new text block.
 - `Ctrl+I` — insert an image block via the `o` picker.
+- `Ctrl+3` — insert a 3D block and edit its Three.js HTML in Vim.
 - `j/k` — move between blocks.
 - `Enter` — open the selected text block in Vim.
 - Exit Vim — refreshes the block content in GTK.

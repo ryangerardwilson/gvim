@@ -4,6 +4,8 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import List, Sequence
 
+from three_template import default_three_template
+
 
 @dataclass(frozen=True)
 class TextBlock:
@@ -18,7 +20,13 @@ class ImageBlock:
     mime: str | None = None
 
 
-Block = TextBlock | ImageBlock
+@dataclass(frozen=True)
+class ThreeBlock:
+    source: str
+    title: str = ""
+
+
+Block = TextBlock | ImageBlock | ThreeBlock
 
 
 class BlockDocument:
@@ -66,6 +74,14 @@ class BlockDocument:
             self._blocks[index] = TextBlock(text)
             self._dirty = True
 
+    def set_three_block(self, index: int, source: str) -> None:
+        if index < 0 or index >= len(self._blocks):
+            return
+        block = self._blocks[index]
+        if isinstance(block, ThreeBlock):
+            self._blocks[index] = ThreeBlock(source, title=block.title)
+            self._dirty = True
+
 
 def sample_document(image_path: str | None) -> BlockDocument:
     blocks: List[Block] = [
@@ -91,6 +107,7 @@ def sample_document(image_path: str | None) -> BlockDocument:
                 "- Images are standalone blocks.\n"
                 "- Vim runs externally; GTK stays focused on layout.\n"
             ),
+            ThreeBlock(default_three_template()),
         ]
     )
 

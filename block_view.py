@@ -1,13 +1,25 @@
 from __future__ import annotations
 
 import os
+from pathlib import Path
 
 import gi
 
 gi.require_version("Gtk", "4.0")
+try:
+    gi.require_version("WebKit", "6.0")
+except ValueError:
+    try:
+        gi.require_version("WebKit", "4.1")
+    except ValueError:
+        pass
 from gi.repository import Gtk
+try:
+    from gi.repository import WebKit
+except Exception:
+    WebKit = None
 
-from block_model import BlockDocument, ImageBlock, TextBlock
+from block_model import BlockDocument, ImageBlock, TextBlock, ThreeBlock
 
 
 class BlockEditorView(Gtk.ScrolledWindow):
@@ -41,6 +53,8 @@ class BlockEditorView(Gtk.ScrolledWindow):
                 widget = _TextBlockView(block.text)
             elif isinstance(block, ImageBlock):
                 widget = _ImageBlockView(block.path, block.alt)
+            elif isinstance(block, ThreeBlock):
+                widget = _ThreeBlockView(block.source)
             else:
                 continue
             self._block_widgets.append(widget)
@@ -168,3 +182,54 @@ class _ImageBlockView(Gtk.Frame):
             label.set_margin_start(12)
             label.set_margin_end(12)
             self.set_child(label)
+
+
+class _ThreeBlockView(Gtk.Frame):
+    def __init__(self, source: str) -> None:
+        super().__init__()
+        self.add_css_class("block")
+        self.add_css_class("block-three")
+
+        if WebKit is None:
+            label = Gtk.Label(label="WebKitGTK not available for 3D blocks")
+            label.set_margin_top(12)
+            label.set_margin_bottom(12)
+            label.set_margin_start(12)
+            label.set_margin_end(12)
+            self.set_child(label)
+            return
+
+        if not source.strip():
+            label = Gtk.Label(label="Empty 3D block")
+            label.set_margin_top(12)
+            label.set_margin_bottom(12)
+            label.set_margin_start(12)
+            label.set_margin_end(12)
+            self.set_child(label)
+            return
+
+        source = source.replace("__GTKV_THREE_SRC__", _three_module_uri())
+
+        view = WebKit.WebView()
+        settings = view.get_settings()
+        if settings is not None:
+            if hasattr(settings, "set_enable_javascript"):
+                settings.set_enable_javascript(True)
+            if hasattr(settings, "set_enable_webgl"):
+                settings.set_enable_webgl(True)
+            if hasattr(settings, "set_enable_developer_extras"):
+                settings.set_enable_developer_extras(True)
+            if hasattr(settings, "set_allow_file_access_from_file_urls"):
+                settings.set_allow_file_access_from_file_urls(True)
+            if hasattr(settings, "set_allow_universal_access_from_file_urls"):
+                settings.set_allow_universal_access_from_file_urls(True)
+        view.set_vexpand(False)
+        view.set_hexpand(True)
+        view.set_size_request(-1, 360)
+        view.load_html(source, "file:///")
+        self.set_child(view)
+
+
+def _three_module_uri() -> str:
+    bundled = Path(__file__).with_name("three.module.min.js")
+    return bundled.resolve().as_uri()

@@ -59,5 +59,8 @@ Defines block types and the document structure.
 ### `block_view.py`
 Renders the document as GTK blocks and tracks selection/navigation.
 
+### `persistence_sqlite.py`
+SQLite persistence for `.docv` files (text, image, and 3D blocks).
+
 ### `style.css`
 Visual styling for the block UI.

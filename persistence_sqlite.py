@@ -6,10 +6,10 @@ import os
 import sqlite3
 from pathlib import Path
 
-from block_model import BlockDocument, ImageBlock, TextBlock
+from block_model import BlockDocument, ImageBlock, TextBlock, ThreeBlock
 
 
-SCHEMA_VERSION = 1
+SCHEMA_VERSION = 2
 
 
 def load_document(path: Path) -> BlockDocument:
@@ -42,6 +42,9 @@ def load_document(path: Path) -> BlockDocument:
                         mime=image_row["mime"],
                     )
                 )
+                continue
+            if row["type"] == "three":
+                blocks.append(ThreeBlock(row["text"] or ""))
         doc = BlockDocument(blocks, path=path)
         doc.clear_dirty()
         return doc
@@ -77,6 +80,11 @@ def save_document(path: Path, document: BlockDocument) -> None:
                 conn.execute(
                     "INSERT INTO blocks (position, type, image_id) VALUES (?, 'image', ?)",
                     (position, image_id),
+                )
+            elif isinstance(block, ThreeBlock):
+                conn.execute(
+                    "INSERT INTO blocks (position, type, text) VALUES (?, 'three', ?)",
+                    (position, block.source),
                 )
             position += 1
 
@@ -118,7 +126,7 @@ def _ensure_schema(conn: sqlite3.Connection) -> None:
         CREATE TABLE IF NOT EXISTS blocks (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             position INTEGER NOT NULL,
-            type TEXT NOT NULL CHECK(type IN ('text','image')),
+            type TEXT NOT NULL CHECK(type IN ('text','image','three')),
             text TEXT,
             image_id INTEGER,
             created_at TEXT DEFAULT (datetime('now')),
@@ -129,12 +137,57 @@ def _ensure_schema(conn: sqlite3.Connection) -> None:
     )
     conn.execute("CREATE INDEX IF NOT EXISTS idx_blocks_position ON blocks(position)")
 
+    current_version = _get_schema_version(conn)
+    if current_version < SCHEMA_VERSION:
+        _migrate_schema(conn, current_version)
+
 
 def _upsert_meta(conn: sqlite3.Connection, key: str, value: str) -> None:
     conn.execute(
         "INSERT INTO meta (key, value) VALUES (?, ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value",
         (key, value),
     )
+
+
+def _get_schema_version(conn: sqlite3.Connection) -> int:
+    row = conn.execute(
+        "SELECT value FROM meta WHERE key = 'schema_version'"
+    ).fetchone()
+    if row is None:
+        return 0
+    try:
+        return int(row["value"])
+    except (ValueError, TypeError):
+        return 0
+
+
+def _migrate_schema(conn: sqlite3.Connection, current_version: int) -> None:
+    if current_version < 2:
+        conn.execute("ALTER TABLE blocks RENAME TO blocks_old")
+        conn.execute(
+            """
+            CREATE TABLE blocks (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                position INTEGER NOT NULL,
+                type TEXT NOT NULL CHECK(type IN ('text','image','three')),
+                text TEXT,
+                image_id INTEGER,
+                created_at TEXT DEFAULT (datetime('now')),
+                updated_at TEXT DEFAULT (datetime('now')),
+                FOREIGN KEY(image_id) REFERENCES images(id) ON DELETE SET NULL
+            )
+            """
+        )
+        conn.execute(
+            """
+            INSERT INTO blocks (id, position, type, text, image_id, created_at, updated_at)
+            SELECT id, position, type, text, image_id, created_at, updated_at
+            FROM blocks_old
+            """
+        )
+        conn.execute("DROP TABLE blocks_old")
+
+    _upsert_meta(conn, "schema_version", str(SCHEMA_VERSION))
 
 
 def _resolve_image_payload(block: ImageBlock) -> tuple[bytes | None, str | None]:
