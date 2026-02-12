@@ -1,7 +1,14 @@
 _gtkv_complete() {
   local cur
   cur="${COMP_WORDS[COMP_CWORD]}"
-  COMPREPLY=( $(compgen -f -X '!*.gtkv.html' -- "${cur}") )
+  case "${cur}" in
+    --image=*)
+      COMPREPLY=( $(compgen -f -- "${cur#--image=}") )
+      ;;
+    *)
+      COMPREPLY=( $(compgen -W "-h --help -v --version -u --upgrade --image" -- "${cur}") )
+      ;;
+  esac
   compopt -o filenames 2>/dev/null || true
 }
 

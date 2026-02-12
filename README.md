@@ -1,20 +1,17 @@
 # gtkv
 
-Vim is one of the best-designed editing experiences in software, but its
-brilliance is boxed in by the terminal. `gtkv` breaks that ceiling: it keeps
-the Vim-first workflow while unlocking graphical capabilities like inline
-images.
-
-`gtkv` is a GTK4-first Vim-inspired editor with inline image support. It saves
-documents as `*.gtkv.html` with embedded base64 images, and keeps the workflow
-fast and minimal.
+`gtkv` is a GTK4 block-based editor that keeps Vim as the editor. Text and
+images live in separate blocks, and text blocks open in an external terminal
+Vim session for full editing power.
 
 ---
 
 ## Requirements
 
 - GTK4 runtime libraries.
-- PyGObject + GObject Introspection (for running from source). Install via your distro package manager.
+- PyGObject + GObject Introspection (for running from source).
+- A terminal Vim (`nvim`, `vim`, or `vi`).
+- Optional: the `o` file picker for image insertion.
 
 ## Installation
 
@@ -55,35 +52,28 @@ python main.py
 ## Usage
 
 - `gtkv` — start the editor.
-- `gtkv file.gtkv.html` — open an existing document.
-- `Ctrl+I` — insert an image.
-- `Ctrl+S` — save (creates `*.gtkv.html`).
-- `i` — insert mode.
-- `Esc` — normal mode.
-- `h/j/k/l` — move in normal/visual mode.
-- `v` — visual mode.
-- `a/A` — append after cursor / end of line.
-- `o/O` — open new line below / above.
-- `:` — command prompt (`:w`, `:q`, `:wq`).
-- `/` — search forward.
-- `-d` — enable debug logging (`debug.log`).
+- `Ctrl+V` — append a new text block.
+- `Ctrl+I` — insert an image block via the `o` picker.
+- `j/k` — move between blocks.
+- `Enter` — open the selected text block in Vim.
+- Exit Vim — refreshes the block content in GTK.
 - `-v` — print installed version.
 - `-u` — upgrade to the latest release.
 - `-h` — show CLI help.
+- `--image /path/to/image.png` — include an image in the sample document.
 
 ### Bash completion
 
 The installer drops a completion script into
 `${XDG_CONFIG_HOME:-~/.config}/bash_completion.d/gtkv` and adds a loader to
-`~/.bashrc` if needed. After restarting your shell, `gtkv<Tab>` will complete
-only `*.gtkv.html` files.
+`~/.bashrc` if needed.
 
 ---
 
 ## Notes
 
-- Lines are hard-limited to 88 columns; images are scaled to fit within that width.
-- Font family/size and tab width are configured in `config.py`.
+- Text and images are separate blocks; there is no inline mixing.
+- Vim runs externally in your terminal; GTK stays focused on layout.
 
 ---
 

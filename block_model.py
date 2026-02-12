@@ -40,9 +40,9 @@ class BlockDocument:
 def sample_document(image_path: str | None) -> BlockDocument:
     blocks: List[Block] = [
         TextBlock(
-            "# Prototype: Block-based editor\n"
-            "This is a text block that would be backed by a terminal Vim instance.\n"
-            "Text and images are separate blocks; no inline mixing.\n"
+            "# GTKV block editor\n"
+            "Navigate blocks with j/k, open a text block with Enter.\n"
+            "Text and images live in separate blocks.\n"
         )
     ]
 
@@ -52,13 +52,14 @@ def sample_document(image_path: str | None) -> BlockDocument:
     blocks.extend(
         [
             TextBlock(
-                "# Notes\n"
-                "- Visual/block modes stay within a text block.\n"
-                "- Images render as their own blocks.\n"
+                "# Editing\n"
+                "Enter opens a temp file in Vim inside your terminal.\n"
+                "Exit Vim to refresh the block content.\n"
             ),
             TextBlock(
-                "# Next\n"
-                "Integrate a real Vim backend and map its grid into this block.\n"
+                "# Notes\n"
+                "- Images are standalone blocks.\n"
+                "- Vim runs externally; GTK stays focused on layout.\n"
             ),
         ]
     )

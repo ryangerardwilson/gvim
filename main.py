@@ -3,50 +3,334 @@
 from __future__ import annotations
 
 import argparse
-from pathlib import Path
+import os
+import shlex
+import shutil
 import subprocess
 import sys
+import tempfile
+import time
+from pathlib import Path
 from typing import Sequence
 
-from config import AppConfig
-from logging_debug import setup_debug_logging
+import gi
+
+gi.require_version("Gtk", "4.0")
+gi.require_version("Gdk", "4.0")
+from gi.repository import Gdk, GLib, Gtk
+
 from _version import __version__
+from block_model import BlockDocument, ImageBlock, TextBlock, sample_document
+from block_view import BlockEditorView
+
 
 INSTALL_SH_URL = (
     "https://raw.githubusercontent.com/ryangerardwilson/gtkv/main/install.sh"
 )
-from orchestrator import Orchestrator
+APP_ID = "com.gtkv.block"
 
 
-def parse_args(argv: Sequence[str]) -> tuple[AppConfig, list[str]]:
+class BlockApp(Gtk.Application):
+    def __init__(self, image_path: str | None) -> None:
+        super().__init__(application_id=APP_ID)
+        self._image_path = image_path
+        self._document: BlockDocument | None = None
+        self._view: BlockEditorView | None = None
+        self._last_picker_start = None
+        self._last_doc_key = None
+        self._active_editor: dict[str, object] | None = None
+
+    def do_activate(self) -> None:
+        window = Gtk.ApplicationWindow(application=self)
+        window.set_title("GTKV")
+        window.set_default_size(960, 720)
+
+        self._document = sample_document(self._image_path)
+        self._view = BlockEditorView()
+        self._view.set_document(self._document)
+
+        controller = Gtk.EventControllerKey()
+        controller.set_propagation_phase(Gtk.PropagationPhase.CAPTURE)
+        controller.connect("key-pressed", self._on_key_pressed)
+        window.add_controller(controller)
+
+        window.set_child(self._view)
+        window.present()
+
+    def _on_key_pressed(self, _controller, keyval, _keycode, state) -> bool:
+        if self._document is None or self._view is None:
+            return False
+
+        return self._handle_doc_keys(keyval, state)
+
+    def _handle_doc_keys(self, keyval, state) -> bool:
+        if self._view is None or self._document is None:
+            return False
+
+        if state & Gdk.ModifierType.CONTROL_MASK:
+            if keyval in (ord("v"), ord("V")):
+                self._document.append_block(TextBlock("# New text block\n"))
+                self._view.set_document(self._document)
+                return True
+            if keyval in (ord("i"), ord("I")):
+                return self._begin_image_selector_o()
+
+        if keyval in (ord("j"), ord("J"), Gdk.KEY_Down):
+            self._view.move_selection(1)
+            self._last_doc_key = keyval
+            return True
+
+        if keyval in (ord("k"), ord("K"), Gdk.KEY_Up):
+            self._view.move_selection(-1)
+            self._last_doc_key = keyval
+            return True
+
+        if keyval in (ord("g"), ord("G")):
+            if keyval == ord("G"):
+                self._view.select_last()
+                self._last_doc_key = None
+                return True
+            if self._last_doc_key == ord("g"):
+                self._view.select_first()
+                self._last_doc_key = None
+                return True
+            self._last_doc_key = ord("g")
+            return True
+
+        if keyval in (Gdk.KEY_Return, Gdk.KEY_KP_Enter):
+            return self._open_selected_text_block_editor()
+
+        self._last_doc_key = None
+        return False
+
+    def _open_selected_text_block_editor(self) -> bool:
+        if self._view is None or self._document is None:
+            return False
+
+        if self._active_editor is not None:
+            return True
+
+        if not self._view.selected_block_is_text():
+            return True
+
+        index = self._view.get_selected_index()
+        block = self._document.blocks[index]
+        if not isinstance(block, TextBlock):
+            return True
+
+        temp = tempfile.NamedTemporaryFile(
+            prefix="gtkv-block-", suffix=".txt", delete=False
+        )
+        temp_path = Path(temp.name)
+        temp.write(block.text.encode("utf-8"))
+        temp.flush()
+        temp.close()
+
+        editor_cmd = self._pick_terminal_editor()
+        if not editor_cmd:
+            return True
+
+        process = self._launch_terminal_process(editor_cmd + [temp_path.as_posix()])
+        if not process:
+            return True
+
+        self._active_editor = {
+            "process": process,
+            "path": temp_path,
+            "index": index,
+        }
+
+        GLib.timeout_add(250, self._poll_for_editor_exit)
+        return True
+
+    def _poll_for_editor_exit(self) -> bool:
+        if not self._active_editor or self._document is None or self._view is None:
+            self._active_editor = None
+            return False
+
+        process = self._active_editor["process"]
+        if isinstance(process, subprocess.Popen) and process.poll() is None:
+            return True
+
+        path = self._active_editor["path"]
+        index = self._active_editor["index"]
+
+        if isinstance(path, Path) and isinstance(index, int):
+            try:
+                updated_text = path.read_text(encoding="utf-8")
+            except OSError:
+                updated_text = None
+            if updated_text is not None:
+                self._document.set_text_block(index, updated_text)
+                self._view.set_document(self._document)
+
+            try:
+                path.unlink()
+            except OSError:
+                pass
+
+        self._active_editor = None
+        return False
+
+    def _begin_image_selector_o(self) -> bool:
+        if self._document is None or self._view is None:
+            return False
+
+        if shutil.which("o") is None:
+            return False
+
+        downloads_dir = Path.home() / "Downloads"
+        start_dir = downloads_dir if downloads_dir.exists() else Path.home()
+        cache_path = self._get_o_picker_cache_path()
+        if cache_path and cache_path.exists():
+            try:
+                cache_path.unlink()
+            except OSError:
+                pass
+
+        cmd = [
+            "o",
+            "-p",
+            start_dir.as_posix(),
+            "-lf",
+            "png,jpg,jpeg,gif,bmp,webp",
+        ]
+
+        if not self._launch_terminal(cmd, cwd=start_dir):
+            return False
+
+        if not cache_path:
+            return False
+
+        self._last_picker_start = time.monotonic()
+        self._poll_for_o_picker_selection(cache_path)
+        return True
+
+    def _launch_terminal(self, command: list[str], cwd: Path | None = None) -> bool:
+        return self._launch_terminal_process(command, cwd) is not None
+
+    def _launch_terminal_process(
+        self, command: list[str], cwd: Path | None = None
+    ) -> subprocess.Popen | None:
+        commands: list[list[str]] = []
+        term_env = os.environ.get("TERMINAL")
+        if term_env:
+            commands.append(shlex.split(term_env))
+        commands.extend(
+            [
+                [cmd]
+                for cmd in (
+                    "alacritty",
+                    "foot",
+                    "kitty",
+                    "wezterm",
+                    "gnome-terminal",
+                    "xterm",
+                )
+            ]
+        )
+
+        cmd_joined = shlex.join(command)
+        for cmd in commands:
+            if not cmd:
+                continue
+            if shutil.which(cmd[0]) is None:
+                continue
+            launch_cmd = list(cmd)
+            if any("{cmd}" in token for token in launch_cmd):
+                launch_cmd = [token.replace("{cmd}", cmd_joined) for token in launch_cmd]
+            else:
+                launch_cmd.extend(["-e"] + command)
+            try:
+                process = subprocess.Popen(
+                    launch_cmd,
+                    cwd=cwd.as_posix() if cwd else None,
+                    stdout=subprocess.DEVNULL,
+                    stderr=subprocess.DEVNULL,
+                    stdin=subprocess.DEVNULL,
+                )
+            except OSError:
+                continue
+            return process
+        return None
+
+    @staticmethod
+    def _pick_terminal_editor() -> list[str] | None:
+        for cmd in ("nvim", "vim", "vi"):
+            path = shutil.which(cmd)
+            if path:
+                return [path]
+        return None
+
+    @staticmethod
+    def _get_o_picker_cache_path() -> Path | None:
+        cache_root = os.environ.get("XDG_CACHE_HOME")
+        if cache_root:
+            return Path(cache_root) / "o" / "picker-selection.txt"
+        return Path.home() / ".cache" / "o" / "picker-selection.txt"
+
+    def _poll_for_o_picker_selection(self, cache_path: Path) -> None:
+        start_time = self._last_picker_start or time.monotonic()
+        allowed_exts = {"png", "jpg", "jpeg", "gif", "bmp", "webp"}
+
+        def _check() -> bool:
+            if self._document is None or self._view is None:
+                return False
+            if cache_path.exists():
+                try:
+                    data = cache_path.read_text(encoding="utf-8").strip()
+                except OSError:
+                    return False
+                if not data:
+                    return False
+                first = data.splitlines()[0].strip()
+                if not first:
+                    return False
+                path = Path(first)
+                if path.exists() and path.is_file():
+                    ext = path.suffix.lstrip(".").lower()
+                    if ext in allowed_exts:
+                        self._document.append_block(
+                            ImageBlock(path.as_posix(), alt=path.name)
+                        )
+                        self._view.set_document(self._document)
+                return False
+
+            if time.monotonic() - start_time > 300:
+                return False
+
+            return True
+
+        GLib.timeout_add(200, _check)
+
+
+def _load_css(css_path: Path) -> None:
+    if not css_path.exists():
+        return
+
+    provider = Gtk.CssProvider()
+    provider.load_from_path(str(css_path))
+    display = Gdk.Display.get_default()
+    if display is None:
+        return
+
+    Gtk.StyleContext.add_provider_for_display(
+        display, provider, Gtk.STYLE_PROVIDER_PRIORITY_APPLICATION
+    )
+
+
+def parse_args(argv: Sequence[str]) -> tuple[argparse.Namespace, list[str]]:
     parser = argparse.ArgumentParser(
-        description="Vim-like GTK editor with image support"
+        description="Block-based GTK4 editor with external Vim editing"
     )
-    parser.add_argument(
-        "-c", dest="cleanup_cache", action="store_true", help="Clean cache and exit"
-    )
-    parser.add_argument(
-        "-d", "--debug", dest="debug", action="store_true", help="Enable debug logging"
-    )
-    parser.add_argument(
-        "-v", "--version", action="store_true", help="Show installed version"
-    )
-    parser.add_argument(
-        "-u", "--upgrade", action="store_true", help="Upgrade to latest release"
-    )
-    parser.add_argument("file", nargs="?", help="Optional file to open on startup")
+    parser.add_argument("-v", "--version", action="store_true", help="Show version")
+    parser.add_argument("-u", "--upgrade", action="store_true", help="Upgrade")
+    parser.add_argument("--image", help="Optional image to show in sample doc")
     if hasattr(parser, "parse_known_intermixed_args"):
         args, gtk_args = parser.parse_known_intermixed_args(argv)
     else:
         args, gtk_args = parser.parse_known_args(argv)
-    config = AppConfig(
-        startup_file=args.file,
-        cleanup_cache=args.cleanup_cache,
-        show_version=args.version,
-        upgrade=args.upgrade,
-        debug=args.debug,
-    )
-    return config, gtk_args
+    return args, gtk_args
 
 
 def _run_upgrade() -> int:
@@ -102,44 +386,21 @@ def _get_version() -> str:
     return __version__
 
 
-def build_application(config: AppConfig):
-    import gi  # type: ignore
-
-    gi.require_version("Gtk", "4.0")
-    from gi.repository import Gtk  # type: ignore
-
-    app = Gtk.Application(application_id="com.example.vimgtk")
-
-    def on_activate(application) -> None:
-        window = Gtk.ApplicationWindow(application=application)
-        window.set_title("Vim GTK")
-        window.set_default_size(1024, 768)
-
-        orchestrator = Orchestrator(
-            application=application, window=window, config=config
-        )
-        if getattr(config, "cleanup_cache", False):
-            orchestrator.cleanup_cache()
-            application.quit()
-            return
-        orchestrator.start()
-
-        window.present()
-
-    app.connect("activate", on_activate)
-    return app
-
-
 def main(argv: Sequence[str] | None = None) -> int:
     args = list(sys.argv[1:] if argv is None else argv)
-    config, gtk_args = parse_args(args)
-    setup_debug_logging(config.debug, Path("debug.log"))
-    if config.show_version:
+    options, gtk_args = parse_args(args)
+    if options.version:
         print(_get_version())
         return 0
-    if config.upgrade:
+    if options.upgrade:
         return _run_upgrade()
-    app = build_application(config)
+
+    image_path = options.image or os.getenv("GTKV_IMAGE")
+    if image_path and not os.path.exists(image_path):
+        image_path = None
+
+    app = BlockApp(image_path)
+    _load_css(Path(__file__).with_name("style.css"))
     return app.run(gtk_args)
 
 

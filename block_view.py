@@ -43,13 +43,17 @@ class BlockEditorView(Gtk.ScrolledWindow):
             self._block_widgets.append(widget)
             self._column.append(widget)
 
-        self._selected_index = min(self._selected_index, max(len(self._block_widgets) - 1, 0))
+        self._selected_index = min(
+            self._selected_index, max(len(self._block_widgets) - 1, 0)
+        )
         self._refresh_selection()
 
     def move_selection(self, delta: int) -> None:
         if not self._block_widgets:
             return
-        self._selected_index = max(0, min(self._selected_index + delta, len(self._block_widgets) - 1))
+        self._selected_index = max(
+            0, min(self._selected_index + delta, len(self._block_widgets) - 1)
+        )
         self._refresh_selection()
 
     def select_first(self) -> None:
