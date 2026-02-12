@@ -49,6 +49,15 @@ class BlockDocument:
         self._blocks.append(block)
         self._dirty = True
 
+    def insert_block_after(self, index: int, block: Block) -> None:
+        if index < 0:
+            self._blocks.insert(0, block)
+        elif index >= len(self._blocks) - 1:
+            self._blocks.append(block)
+        else:
+            self._blocks.insert(index + 1, block)
+        self._dirty = True
+
     def set_text_block(self, index: int, text: str) -> None:
         if index < 0 or index >= len(self._blocks):
             return

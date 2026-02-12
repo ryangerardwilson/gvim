@@ -71,7 +71,10 @@ class BlockApp(Gtk.Application):
 
         if state & Gdk.ModifierType.CONTROL_MASK:
             if keyval in (ord("v"), ord("V")):
-                self._document.append_block(TextBlock("# New text block\n"))
+                insert_at = self._view.get_selected_index()
+                self._document.insert_block_after(
+                    insert_at, TextBlock("# New text block\n")
+                )
                 self._view.set_document(self._document)
                 return True
             if keyval in (ord("i"), ord("I")):
@@ -328,8 +331,9 @@ class BlockApp(Gtk.Application):
                 if path.exists() and path.is_file():
                     ext = path.suffix.lstrip(".").lower()
                     if ext in allowed_exts:
-                        self._document.append_block(
-                            ImageBlock(path.as_posix(), alt=path.name)
+                        insert_at = self._view.get_selected_index()
+                        self._document.insert_block_after(
+                            insert_at, ImageBlock(path.as_posix(), alt=path.name)
                         )
                         self._view.set_document(self._document)
                 return False

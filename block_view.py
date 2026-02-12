@@ -21,7 +21,7 @@ class BlockEditorView(Gtk.ScrolledWindow):
         self._block_widgets: list[Gtk.Widget] = []
         self._selected_index = 0
 
-        self._column = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=16)
+        self._column = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=8)
         self._column.set_margin_top(24)
         self._column.set_margin_bottom(24)
         self._column.set_margin_start(24)
@@ -129,10 +129,13 @@ class _TextBlockView(Gtk.Frame):
         self._text_view = Gtk.TextView()
         self._text_view.set_monospace(True)
         self._text_view.set_wrap_mode(Gtk.WrapMode.WORD_CHAR)
-        self._text_view.set_top_margin(12)
-        self._text_view.set_bottom_margin(12)
+        self._text_view.set_top_margin(8)
+        self._text_view.set_bottom_margin(0)
         self._text_view.set_left_margin(12)
         self._text_view.set_right_margin(12)
+        self._text_view.set_pixels_above_lines(0)
+        self._text_view.set_pixels_below_lines(0)
+        self._text_view.set_pixels_inside_wrap(0)
         self._text_view.set_editable(False)
         self._text_view.set_cursor_visible(False)
 
