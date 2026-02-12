@@ -15,6 +15,8 @@ class BlockEditorView(Gtk.ScrolledWindow):
         super().__init__()
         self.set_policy(Gtk.PolicyType.AUTOMATIC, Gtk.PolicyType.AUTOMATIC)
         self.set_can_focus(True)
+        self.set_propagate_natural_height(False)
+        self.set_propagate_natural_width(False)
 
         self._block_widgets: list[Gtk.Widget] = []
         self._selected_index = 0
@@ -24,6 +26,7 @@ class BlockEditorView(Gtk.ScrolledWindow):
         self._column.set_margin_bottom(24)
         self._column.set_margin_start(24)
         self._column.set_margin_end(24)
+        self._column.set_valign(Gtk.Align.START)
 
         self.set_child(self._column)
 
@@ -55,18 +58,21 @@ class BlockEditorView(Gtk.ScrolledWindow):
             0, min(self._selected_index + delta, len(self._block_widgets) - 1)
         )
         self._refresh_selection()
+        self._scroll_to_selected()
 
     def select_first(self) -> None:
         if not self._block_widgets:
             return
         self._selected_index = 0
         self._refresh_selection()
+        self._scroll_to_selected()
 
     def select_last(self) -> None:
         if not self._block_widgets:
             return
         self._selected_index = len(self._block_widgets) - 1
         self._refresh_selection()
+        self._scroll_to_selected()
 
     def focus_selected_block(self) -> bool:
         if not self._block_widgets:
@@ -95,6 +101,23 @@ class BlockEditorView(Gtk.ScrolledWindow):
                 widget.add_css_class("block-selected")
             else:
                 widget.remove_css_class("block-selected")
+
+    def _scroll_to_selected(self) -> None:
+        if not self._block_widgets:
+            return
+        widget = self._block_widgets[self._selected_index]
+        allocation = widget.get_allocation()
+        vadjustment = self.get_vadjustment()
+        if vadjustment is None:
+            return
+        top = allocation.y
+        bottom = allocation.y + allocation.height
+        view_top = vadjustment.get_value()
+        view_bottom = view_top + vadjustment.get_page_size()
+        if top < view_top:
+            vadjustment.set_value(max(0, top - 12))
+        elif bottom > view_bottom:
+            vadjustment.set_value(max(0, bottom - vadjustment.get_page_size() + 12))
 
 
 class _TextBlockView(Gtk.Frame):
