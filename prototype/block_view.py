@@ -68,15 +68,15 @@ class BlockEditorView(Gtk.ScrolledWindow):
         if not self._block_widgets:
             return False
         widget = self._block_widgets[self._selected_index]
-        if isinstance(widget, _TextBlockView):
-            widget.focus_editor()
-            return True
-        return False
+        return isinstance(widget, _TextBlockView)
 
     def selected_block_is_text(self) -> bool:
         if not self._block_widgets:
             return False
         return isinstance(self._block_widgets[self._selected_index], _TextBlockView)
+
+    def get_selected_index(self) -> int:
+        return self._selected_index
 
     def clear_selection(self) -> None:
         for widget in self._block_widgets:
@@ -106,15 +106,13 @@ class _TextBlockView(Gtk.Frame):
         self._text_view.set_bottom_margin(12)
         self._text_view.set_left_margin(12)
         self._text_view.set_right_margin(12)
-        self._text_view.set_vexpand(False)
+        self._text_view.set_editable(False)
+        self._text_view.set_cursor_visible(False)
 
         buffer = self._text_view.get_buffer()
         buffer.set_text(text)
 
         self.set_child(self._text_view)
-
-    def focus_editor(self) -> None:
-        self._text_view.grab_focus()
 
 
 class _ImageBlockView(Gtk.Frame):

@@ -5,6 +5,7 @@ import os
 import shlex
 import shutil
 import subprocess
+import tempfile
 import time
 from pathlib import Path
 
@@ -28,8 +29,8 @@ class BlockPrototypeApp(Gtk.Application):
         self._document: BlockDocument | None = None
         self._view: BlockEditorView | None = None
         self._last_picker_start = None
-        self._mode = "doc"
         self._last_doc_key = None
+        self._active_editor: dict[str, object] | None = None
 
     def do_activate(self) -> None:
         window = Gtk.ApplicationWindow(application=self)
@@ -52,16 +53,7 @@ class BlockPrototypeApp(Gtk.Application):
         if self._document is None or self._view is None:
             return False
 
-        if self._mode == "doc":
-            return self._handle_doc_keys(keyval, state)
-
-        if keyval == Gdk.KEY_Escape:
-            self._mode = "doc"
-            self._view.refresh_selection()
-            self._view.grab_focus()
-            return True
-
-        return False
+        return self._handle_doc_keys(keyval, state)
 
     def _handle_doc_keys(self, keyval, state) -> bool:
         if self._view is None or self._document is None:
@@ -98,12 +90,76 @@ class BlockPrototypeApp(Gtk.Application):
             return True
 
         if keyval in (Gdk.KEY_Return, Gdk.KEY_KP_Enter):
-            if self._view.focus_selected_block():
-                self._mode = "block"
-                self._view.clear_selection()
-            return True
+            return self._open_selected_text_block_editor()
 
         self._last_doc_key = None
+        return False
+
+    def _open_selected_text_block_editor(self) -> bool:
+        if self._view is None or self._document is None:
+            return False
+
+        if self._active_editor is not None:
+            return True
+
+        if not self._view.selected_block_is_text():
+            return True
+
+        index = self._view.get_selected_index()
+        block = self._document.blocks[index]
+        if not isinstance(block, TextBlock):
+            return True
+
+        temp = tempfile.NamedTemporaryFile(prefix="gtkv-block-", suffix=".txt", delete=False)
+        temp_path = Path(temp.name)
+        temp.write(block.text.encode("utf-8"))
+        temp.flush()
+        temp.close()
+
+        editor_cmd = self._pick_terminal_editor()
+        if not editor_cmd:
+            return True
+
+        process = self._launch_terminal_process(editor_cmd + [temp_path.as_posix()])
+        if not process:
+            return True
+
+        self._active_editor = {
+            "process": process,
+            "path": temp_path,
+            "index": index,
+        }
+
+        GLib.timeout_add(250, self._poll_for_editor_exit)
+        return True
+
+    def _poll_for_editor_exit(self) -> bool:
+        if not self._active_editor or self._document is None or self._view is None:
+            self._active_editor = None
+            return False
+
+        process = self._active_editor["process"]
+        if isinstance(process, subprocess.Popen) and process.poll() is None:
+            return True
+
+        path = self._active_editor["path"]
+        index = self._active_editor["index"]
+
+        if isinstance(path, Path) and isinstance(index, int):
+            try:
+                updated_text = path.read_text(encoding="utf-8")
+            except OSError:
+                updated_text = None
+            if updated_text is not None:
+                self._document.set_text_block(index, updated_text)
+                self._view.set_document(self._document)
+
+            try:
+                path.unlink()
+            except OSError:
+                pass
+
+        self._active_editor = None
         return False
 
     def _begin_image_selector_o(self) -> bool:
@@ -141,6 +197,11 @@ class BlockPrototypeApp(Gtk.Application):
         return True
 
     def _launch_terminal(self, command: list[str], cwd: Path | None = None) -> bool:
+        return self._launch_terminal_process(command, cwd) is not None
+
+    def _launch_terminal_process(
+        self, command: list[str], cwd: Path | None = None
+    ) -> subprocess.Popen | None:
         commands: list[list[str]] = []
         term_env = os.environ.get("TERMINAL")
         if term_env:
@@ -171,7 +232,7 @@ class BlockPrototypeApp(Gtk.Application):
             else:
                 launch_cmd.extend(["-e"] + command)
             try:
-                subprocess.Popen(
+                process = subprocess.Popen(
                     launch_cmd,
                     cwd=cwd.as_posix() if cwd else None,
                     stdout=subprocess.DEVNULL,
@@ -180,8 +241,16 @@ class BlockPrototypeApp(Gtk.Application):
                 )
             except OSError:
                 continue
-            return True
-        return False
+            return process
+        return None
+
+    @staticmethod
+    def _pick_terminal_editor() -> list[str] | None:
+        for cmd in ("nvim", "vim", "vi"):
+            path = shutil.which(cmd)
+            if path:
+                return [path]
+        return None
 
     @staticmethod
     def _get_o_picker_cache_path() -> Path | None:

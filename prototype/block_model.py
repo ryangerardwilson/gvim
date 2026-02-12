@@ -29,6 +29,13 @@ class BlockDocument:
     def append_block(self, block: Block) -> None:
         self._blocks.append(block)
 
+    def set_text_block(self, index: int, text: str) -> None:
+        if index < 0 or index >= len(self._blocks):
+            return
+        block = self._blocks[index]
+        if isinstance(block, TextBlock):
+            self._blocks[index] = TextBlock(text)
+
 
 def sample_document(image_path: str | None) -> BlockDocument:
     blocks: List[Block] = [

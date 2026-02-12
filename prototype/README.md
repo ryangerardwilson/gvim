@@ -22,6 +22,12 @@ Or:
 GTKV_PROTO_IMAGE=/path/to/image.png python prototype/main.py
 ```
 
+## External Vim editing
+
+Text blocks are edited by launching an external terminal and opening a temp
+file in `nvim` (or `vim`/`vi`). When the editor exits, the block text refreshes
+in GTK.
+
 ## Shortcuts
 
 - `Ctrl+V`: append a new text (Vim) block
