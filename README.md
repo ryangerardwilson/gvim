@@ -112,8 +112,8 @@ The installer drops a completion script into
 
 ### Three.js blocks
 
-Insert a block with `,js` and write module JS. The runtime provides
-`THREE`, `scene`, `camera`, `renderer`, and `canvas` as globals.
+Insert a block with `,js` and write module JS. The runtime provides `THREE`,
+`scene`, `camera`, `renderer`, and `canvas` as globals.
 
 ```js
 const geometry = new THREE.BoxGeometry(1, 1, 1);

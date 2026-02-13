@@ -4,7 +4,13 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from block_model import BlockDocument, LatexBlock, PythonImageBlock, TextBlock, ThreeBlock
+from block_model import (
+    BlockDocument,
+    LatexBlock,
+    PythonImageBlock,
+    TextBlock,
+    ThreeBlock,
+)
 
 
 HEADER = "# GTKV v2"

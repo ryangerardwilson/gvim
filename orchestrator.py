@@ -210,7 +210,9 @@ class Orchestrator:
             return True
 
         self._state.active_editor = session
-        editor.schedule_editor_poll(session, self._handle_editor_update, self._clear_editor)
+        editor.schedule_editor_poll(
+            session, self._handle_editor_update, self._clear_editor
+        )
         return True
 
     def _handle_editor_update(self, index: int, kind: str, updated_text: str) -> None:
@@ -298,6 +300,7 @@ class Orchestrator:
         for index, block in enumerate(document.blocks):
             if isinstance(block, PythonImageBlock):
                 self._render_python_image(index)
+
 
 def _get_picker_start_dir() -> Path:
     downloads_dir = Path.home() / "Downloads"

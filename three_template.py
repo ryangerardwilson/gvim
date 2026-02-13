@@ -32,12 +32,12 @@ def render_three_html(source: str) -> str:
         "<!doctype html>\n"
         "<html>\n"
         "  <head>\n"
-        "    <meta charset=\"utf-8\" />\n"
+        '    <meta charset="utf-8" />\n'
         "    <style>html, body { margin: 0; background: transparent; color: #ddd; } canvas { display: block; }</style>\n"
         "  </head>\n"
         "  <body>\n"
-        "    <canvas id=\"gtkv-canvas\"></canvas>\n"
-        "    <script type=\"module\">\n"
+        '    <canvas id="gtkv-canvas"></canvas>\n'
+        '    <script type="module">\n'
         "      const error = (msg) => {\n"
         "        const el = document.createElement('pre');\n"
         "        el.textContent = msg;\n"
@@ -45,7 +45,7 @@ def render_three_html(source: str) -> str:
         "        el.style.padding = '12px';\n"
         "        document.body.appendChild(el);\n"
         "      };\n"
-        f"      const src = \"{src}\";\n"
+        f'      const src = "{src}";\n'
         f"      const userSource = {js_source};\n"
         "      const moduleUrl = URL.createObjectURL(new Blob([userSource], { type: 'text/javascript' }));\n"
         "      import(src).then((THREE) => {\n"

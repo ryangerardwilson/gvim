@@ -17,12 +17,19 @@ except ValueError:
     except ValueError:
         pass
 from gi.repository import Gdk, GLib, Gtk  # type: ignore[import-not-found, attr-defined]
+
 try:
     from gi.repository import WebKit  # type: ignore[import-not-found, attr-defined]
 except Exception:
     WebKit = None
 
-from block_model import BlockDocument, LatexBlock, PythonImageBlock, TextBlock, ThreeBlock
+from block_model import (
+    BlockDocument,
+    LatexBlock,
+    PythonImageBlock,
+    TextBlock,
+    ThreeBlock,
+)
 from latex_template import render_latex_html
 from three_template import render_three_html
 
@@ -325,6 +332,7 @@ class _LatexBlockView(Gtk.Frame):
             return
         if not hasattr(view, "run_javascript"):
             return
+
         def _on_js_finished(_view, result) -> None:
             if WebKit is None:
                 return

@@ -133,7 +133,7 @@ def _replace_black_with_white_svg(svg_text: str) -> str:
         attrs = match.group(2) or ""
         if "style=" in attrs:
             return f"{prefix}{_append_fill_style(attrs)}"
-        return f"{prefix}{attrs} style=\"fill:#d0d0d0\""
+        return f'{prefix}{attrs} style="fill:#d0d0d0"'
 
     updated = re.sub(
         r"(<g\s+id=\"text_\d+\")([^>]*)",
@@ -147,10 +147,10 @@ def _replace_black_with_white_svg(svg_text: str) -> str:
 def _append_fill_style(attrs: str) -> str:
     match = re.search(r"style=\"([^\"]*)\"", attrs)
     if not match:
-        return f"{attrs} style=\"fill:#ffffff\""
+        return f'{attrs} style="fill:#ffffff"'
     style = match.group(1)
     if "fill:" in style:
         updated_style = re.sub(r"fill\s*:[^;]+", "fill:#d0d0d0", style)
     else:
         updated_style = f"{style};fill:#d0d0d0"
-    return attrs.replace(match.group(0), f"style=\"{updated_style}\"")
+    return attrs.replace(match.group(0), f'style="{updated_style}"')

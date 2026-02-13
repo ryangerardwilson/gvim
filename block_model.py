@@ -177,13 +177,11 @@ def sample_document() -> BlockDocument:
                 "\n"
                 "fig, ax = plt.subplots()\n"
                 "ax.plot([0, 1, 2], [0, 1, 0.5])\n"
-                "ax.set_title(\"Sample plot\")\n"
-                "fig.savefig(__gtkv__.renderer, format=\"svg\", dpi=200, transparent=True, bbox_inches=\"tight\")\n",
+                'ax.set_title("Sample plot")\n'
+                'fig.savefig(__gtkv__.renderer, format="svg", dpi=200, transparent=True, bbox_inches="tight")\n',
                 format="svg",
             ),
-            LatexBlock(
-                r"\int_0^\infty e^{-x^2} dx = \frac{\sqrt{\pi}}{2}"
-            ),
+            LatexBlock(r"\int_0^\infty e^{-x^2} dx = \frac{\sqrt{\pi}}{2}"),
             TextBlock(
                 "Heading3",
                 kind="h3",

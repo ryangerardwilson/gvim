@@ -21,4 +21,3 @@ def coerce_docv_path(path: Path) -> Path:
     if path.suffix == ".docv":
         return path
     return path.with_suffix(".docv")
-

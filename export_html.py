@@ -6,7 +6,13 @@ import base64
 from pathlib import Path
 
 import py_runner
-from block_model import BlockDocument, LatexBlock, PythonImageBlock, TextBlock, ThreeBlock
+from block_model import (
+    BlockDocument,
+    LatexBlock,
+    PythonImageBlock,
+    TextBlock,
+    ThreeBlock,
+)
 
 
 KATEX_CSS_CDN = "https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.css"
@@ -14,7 +20,9 @@ KATEX_JS_CDN = "https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.js"
 THREE_JS_CDN = "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.min.js"
 
 
-def export_document(document: BlockDocument, output_path: Path, python_path: str | None) -> None:
+def export_document(
+    document: BlockDocument, output_path: Path, python_path: str | None
+) -> None:
     html = _build_html(document, python_path)
     output_path.write_text(html, encoding="utf-8")
 
@@ -33,7 +41,7 @@ def _build_html(document: BlockDocument, python_path: str | None) -> str:
         elif isinstance(block, LatexBlock):
             block_id = f"latex-{len(latex_sources)}"
             latex_sources.append((block_id, block.source))
-            blocks_html.append(f"<div class=\"block block-latex\" id=\"{block_id}\"></div>")
+            blocks_html.append(f'<div class="block block-latex" id="{block_id}"></div>')
 
     blocks_joined = "".join(blocks_html)
     latex_items = "".join(
@@ -44,9 +52,9 @@ def _build_html(document: BlockDocument, python_path: str | None) -> str:
         "<!doctype html>\n"
         "<html>\n"
         "  <head>\n"
-        "    <meta charset=\"utf-8\" />\n"
-        "    <meta name=\"viewport\" content=\"width=device-width, initial-scale=1\" />\n"
-        f"    <link rel=\"stylesheet\" href=\"{KATEX_CSS_CDN}\" />\n"
+        '    <meta charset="utf-8" />\n'
+        '    <meta name="viewport" content="width=device-width, initial-scale=1" />\n'
+        f'    <link rel="stylesheet" href="{KATEX_CSS_CDN}" />\n'
         "    <style>\n"
         "      :root {\n"
         "        color-scheme: dark;\n"
@@ -82,7 +90,7 @@ def _build_html(document: BlockDocument, python_path: str | None) -> str:
         "    <main>\n"
         f"{blocks_joined}\n"
         "    </main>\n"
-        f"    <script src=\"{KATEX_JS_CDN}\"></script>\n"
+        f'    <script src="{KATEX_JS_CDN}"></script>\n'
         "    <script>\n"
         "      const latexBlocks = [];\n"
         f"{latex_items}"
@@ -110,28 +118,30 @@ def _render_text_block(block: TextBlock, toc_text: str) -> str:
     kind_class = f"block-{block.kind}"
     text_source = toc_text if block.kind == "toc" else block.text
     text = _escape_html(text_source)
-    return f"<section class=\"block {kind_class}\">{text}</section>"
+    return f'<section class="block {kind_class}">{text}</section>'
 
 
 def _render_pyimage_block(block: PythonImageBlock, python_path: str | None) -> str:
     if python_path:
         result = py_runner.render_python_image(block.source, python_path, block.format)
         if result.rendered_data and not result.error:
-            encoded = base64.b64encode(result.rendered_data.encode("utf-8")).decode("utf-8")
+            encoded = base64.b64encode(result.rendered_data.encode("utf-8")).decode(
+                "utf-8"
+            )
             src = f"data:image/svg+xml;base64,{encoded}"
-            return f"<section class=\"block block-pyimage\"><img src=\"{src}\" /></section>"
+            return f'<section class="block block-pyimage"><img src="{src}" /></section>'
         error = _escape_html(result.error or "Render failed")
-        return f"<section class=\"block block-pyimage\">Python render error: {error}</section>"
-    return "<section class=\"block block-pyimage\">Python path not configured.</section>"
+        return f'<section class="block block-pyimage">Python render error: {error}</section>'
+    return '<section class="block block-pyimage">Python path not configured.</section>'
 
 
 def _render_three_block(source: str, index: int) -> str:
     module_source = _escape_js(source)
     canvas_id = f"gtkv-three-{index}"
     return (
-        "<section class=\"block block-three\">"
-        f"<canvas id=\"{canvas_id}\"></canvas>"
-        "<script type=\"module\">"
+        '<section class="block block-three">'
+        f'<canvas id="{canvas_id}"></canvas>'
+        '<script type="module">'
         f"import * as THREE from '{THREE_JS_CDN}';"
         f"const canvas = document.getElementById('{canvas_id}');"
         "const scene = new THREE.Scene();"
@@ -156,11 +166,7 @@ def _render_three_block(source: str, index: int) -> str:
 
 
 def _escape_html(text: str) -> str:
-    return (
-        text.replace("&", "&amp;")
-        .replace("<", "&lt;")
-        .replace(">", "&gt;")
-    )
+    return text.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
 
 
 def _escape_js(text: str) -> str:
@@ -169,9 +175,7 @@ def _escape_js(text: str) -> str:
 
 def _js_string(value: str) -> str:
     return (
-        "\""
-        + value.replace("\\", "\\\\").replace("\"", "\\\"").replace("\n", "\\n")
-        + "\""
+        '"' + value.replace("\\", "\\\\").replace('"', '\\"').replace("\n", "\\n") + '"'
     )
 
 

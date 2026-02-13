@@ -62,7 +62,8 @@ during release packaging so the binary bundle reports the correct version.
 ## Components and single responsibility
 
 ### `main.py`
-CLI entry point. Parses flags, manages upgrade/version flows, and starts the GTK app.
+CLI entry point. Parses flags, manages upgrade/version flows, and starts the
+GTK app.
 
 ### `block_model.py`
 Defines block types and the document structure.

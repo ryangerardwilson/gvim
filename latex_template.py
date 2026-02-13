@@ -12,13 +12,13 @@ def render_latex_html(source: str) -> str:
         "<!doctype html>\n"
         "<html>\n"
         "  <head>\n"
-        "    <meta charset=\"utf-8\" />\n"
-        f"    <link rel=\"stylesheet\" href=\"{css_uri}\" />\n"
+        '    <meta charset="utf-8" />\n'
+        f'    <link rel="stylesheet" href="{css_uri}" />\n'
         "    <style>html, body { margin: 0; background: transparent; color: #d0d0d0; overflow: hidden; }</style>\n"
         "  </head>\n"
         "  <body>\n"
-        "    <div id=\"gtkv-latex\" style=\"padding: 1px 12px 1px 10px;\"></div>\n"
-        f"    <script src=\"{js_uri}\"></script>\n"
+        '    <div id="gtkv-latex" style="padding: 1px 12px 1px 10px;"></div>\n'
+        f'    <script src="{js_uri}"></script>\n'
         "    <script>\n"
         f"      const latex = {latex};\n"
         "      const target = document.getElementById('gtkv-latex');\n"
