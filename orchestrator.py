@@ -130,6 +130,8 @@ class Orchestrator:
         if state & Gdk.ModifierType.CONTROL_MASK:
             if keyval in (ord("s"), ord("S")):
                 return self._save_document()
+            if keyval in (ord("e"), ord("E")):
+                return self._export_current_html()
             if keyval in (ord("t"), ord("T")):
                 if self._save_document():
                     self._quit()
@@ -288,6 +290,15 @@ class Orchestrator:
             return True
         print("No document path set; launch with a .docv filename", file=sys.stderr)
         return False
+
+    def _export_current_html(self) -> bool:
+        document = self._state.document
+        if document is None or document.path is None:
+            print("No document path set; cannot export", file=sys.stderr)
+            return False
+        output_path = document.path.with_suffix(".html")
+        export_document(document, output_path, self._python_path)
+        return True
 
     def _render_python_image(self, index: int) -> None:
         document = self._state.document
