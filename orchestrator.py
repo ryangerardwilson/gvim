@@ -22,6 +22,7 @@ import document_io
 import editor
 import picker
 import py_runner
+from export_html import export_document
 from _version import __version__
 from app_state import AppState
 from block_model import PythonImageBlock, sample_document
@@ -60,6 +61,8 @@ class Orchestrator:
             return 0
         if options.upgrade:
             return _run_upgrade()
+        if options.export:
+            return _run_export(options.export, options.file)
 
         document_path = Path(options.file).expanduser() if options.file else None
         self._python_path = config.get_python_path()
@@ -338,6 +341,7 @@ def parse_args(argv: Sequence[str]) -> tuple[argparse.Namespace, list[str]]:
     )
     parser.add_argument("-v", "--version", action="store_true", help="Show version")
     parser.add_argument("-u", "--upgrade", action="store_true", help="Upgrade")
+    parser.add_argument("-e", "--export", help="Export .docv to HTML")
     parser.add_argument("file", nargs="?", help="Optional .docv document to open")
     if hasattr(parser, "parse_known_intermixed_args"):
         args, gtk_args = parser.parse_known_intermixed_args(argv)
@@ -397,3 +401,17 @@ def _get_version() -> str:
     if result.returncode == 0:
         return result.stdout.strip() or __version__
     return __version__
+
+
+def _run_export(output_path: str, input_path: str | None) -> int:
+    if not input_path:
+        print("Export requires a .docv input path", file=sys.stderr)
+        return 1
+    doc_path = Path(input_path).expanduser()
+    if not doc_path.exists():
+        print(f"Missing document: {doc_path}", file=sys.stderr)
+        return 1
+    document = document_io.load(doc_path)
+    python_path = config.get_python_path()
+    export_document(document, Path(output_path).expanduser(), python_path)
+    return 0

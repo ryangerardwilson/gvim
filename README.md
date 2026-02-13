@@ -72,6 +72,7 @@ python main.py
 - `Ctrl+S` — save the current document (prompts for a path on first save).
 - `-v` — print installed version.
 - `-u` — upgrade to the latest release.
+- `-e output.html doc.docv` — export a document to HTML.
 - `-h` — show CLI help.
 
 ### Leader commands
