@@ -157,8 +157,8 @@ class _TextBlockView(Gtk.Frame):
         self._text_view = Gtk.TextView()
         self._text_view.set_monospace(True)
         self._text_view.set_wrap_mode(Gtk.WrapMode.WORD_CHAR)
-        self._text_view.set_top_margin(8)
-        self._text_view.set_bottom_margin(0)
+        self._text_view.set_top_margin(12)
+        self._text_view.set_bottom_margin(12)
         self._text_view.set_left_margin(12)
         self._text_view.set_right_margin(12)
         self._text_view.set_pixels_above_lines(0)
@@ -183,18 +183,12 @@ class _ImageBlockView(Gtk.Frame):
             picture = Gtk.Picture.new_for_filename(path)
             picture.set_can_shrink(False)
             picture.set_content_fit(Gtk.ContentFit.CONTAIN)
-            picture.set_margin_top(12)
-            picture.set_margin_bottom(12)
-            picture.set_margin_start(12)
-            picture.set_margin_end(12)
+            _apply_block_padding(picture)
             picture.set_valign(Gtk.Align.START)
             self.set_child(picture)
         else:
             label = Gtk.Label(label=f"Missing image: {alt or path}")
-            label.set_margin_top(12)
-            label.set_margin_bottom(12)
-            label.set_margin_start(12)
-            label.set_margin_end(12)
+            _apply_block_padding(label)
             self.set_child(label)
 
 
@@ -206,19 +200,13 @@ class _ThreeBlockView(Gtk.Frame):
 
         if WebKit is None:
             label = Gtk.Label(label="WebKitGTK not available for 3D blocks")
-            label.set_margin_top(12)
-            label.set_margin_bottom(12)
-            label.set_margin_start(12)
-            label.set_margin_end(12)
+            _apply_block_padding(label)
             self.set_child(label)
             return
 
         if not source.strip():
             label = Gtk.Label(label="Empty 3D block")
-            label.set_margin_top(12)
-            label.set_margin_bottom(12)
-            label.set_margin_start(12)
-            label.set_margin_end(12)
+            _apply_block_padding(label)
             self.set_child(label)
             return
 
@@ -248,7 +236,10 @@ class _ThreeBlockView(Gtk.Frame):
         view.set_hexpand(True)
         view.set_size_request(-1, 300)
         view.load_html(source, "file:///")
-        self.set_child(view)
+        box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
+        _apply_block_padding(box)
+        box.append(view)
+        self.set_child(box)
 
 
 class _PyImageBlockView(Gtk.Frame):
@@ -274,10 +265,7 @@ class _PyImageBlockView(Gtk.Frame):
             box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
             box.set_hexpand(True)
             box.set_halign(Gtk.Align.FILL)
-            box.set_margin_top(12)
-            box.set_margin_bottom(12)
-            box.set_margin_start(12)
-            box.set_margin_end(12)
+            _apply_block_padding(box)
             box.add_css_class("pyimage-container")
             box.append(picture)
             self.set_child(box)
@@ -287,10 +275,7 @@ class _PyImageBlockView(Gtk.Frame):
         if block.last_error:
             label_text = f"Python render error: {block.last_error}"
         label = Gtk.Label(label=label_text)
-        label.set_margin_top(12)
-        label.set_margin_bottom(12)
-        label.set_margin_start(12)
-        label.set_margin_end(12)
+        _apply_block_padding(label)
         self.set_child(label)
 
 
@@ -302,19 +287,13 @@ class _LatexBlockView(Gtk.Frame):
 
         if WebKit is None:
             label = Gtk.Label(label="WebKitGTK not available for LaTeX blocks")
-            label.set_margin_top(12)
-            label.set_margin_bottom(12)
-            label.set_margin_start(12)
-            label.set_margin_end(12)
+            _apply_block_padding(label)
             self.set_child(label)
             return
 
         if not source.strip():
             label = Gtk.Label(label="Empty LaTeX block")
-            label.set_margin_top(12)
-            label.set_margin_bottom(12)
-            label.set_margin_start(12)
-            label.set_margin_end(12)
+            _apply_block_padding(label)
             self.set_child(label)
             return
 
@@ -339,14 +318,19 @@ class _LatexBlockView(Gtk.Frame):
         view.set_size_request(-1, 80)
         view.set_valign(Gtk.Align.START)
         view.load_html(render_latex_html(source), "file:///")
-        if hasattr(view, "connect"):
+        if hasattr(view, "connect") and hasattr(view, "run_javascript"):
             view.connect("load-changed", self._on_latex_load_changed)
-        self.set_child(view)
+        box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
+        _apply_block_padding(box)
+        box.append(view)
+        self.set_child(box)
 
     def _on_latex_load_changed(self, view, load_event) -> None:
         if WebKit is None:
             return
         if load_event != WebKit.LoadEvent.FINISHED:
+            return
+        if not hasattr(view, "run_javascript"):
             return
         def _on_js_finished(_view, result) -> None:
             if WebKit is None:
@@ -372,6 +356,13 @@ class _LatexBlockView(Gtk.Frame):
 def _three_module_uri() -> str:
     bundled = Path(__file__).with_name("three.module.min.js")
     return bundled.resolve().as_uri()
+
+
+def _apply_block_padding(widget: Gtk.Widget, padding: int = 12) -> None:
+    widget.set_margin_top(padding)
+    widget.set_margin_bottom(padding)
+    widget.set_margin_start(padding)
+    widget.set_margin_end(padding)
 
 
 def _materialize_pyimage(block: PythonImageBlock) -> str | None:
