@@ -1,9 +1,9 @@
 # gtkv
 
-`gtkv` is a GTK4 block-based editor that keeps Vim as the editor. Text and
-images live in separate blocks, and text blocks open in an external terminal
-Vim session for full editing power. Documents are stored as a single `.docv`
-SQLite file. 3D blocks render with WebKitGTK using a bundled Three.js module.
+`gtkv` is a GTK4 block-based editor that keeps Vim as the editor. Text and code
+live in separate blocks, and text blocks open in an external terminal Vim
+session for full editing power. Documents are stored as a git-friendly text
+`.docv` file. 3D and LaTeX blocks render with WebKitGTK.
 
 ---
 
@@ -17,6 +17,7 @@ SQLite file. 3D blocks render with WebKitGTK using a bundled Three.js module.
 - Optional: Python + Matplotlib for Python render blocks.
 - Optional: WebKitGTK for LaTeX blocks (bundled KaTeX assets).
 - Bundled: `three.module.min.js` is included for 3D blocks.
+- Bundled: KaTeX assets (`katex.min.js`, `katex.min.css`, `fonts/`) for LaTeX.
 
 ## Installation
 
@@ -91,6 +92,56 @@ The installer drops a completion script into
 - Python render output is rendered at runtime (not embedded).
 - LaTeX blocks render via KaTeX in a WebKit view with local assets.
 
+---
+
+## Rendering blocks
+
+### Three.js blocks
+
+Insert a block with `,js` and write module JS. The runtime provides
+`THREE`, `scene`, `camera`, `renderer`, and `canvas` as globals.
+
+```js
+const geometry = new THREE.BoxGeometry(1, 1, 1);
+const material = new THREE.MeshStandardMaterial({ color: 0xaaaaaa });
+const cube = new THREE.Mesh(geometry, material);
+scene.add(cube);
+camera.position.z = 3;
+
+const light = new THREE.DirectionalLight(0xffffff, 1);
+light.position.set(2, 3, 4);
+scene.add(light);
+
+function animate() {
+  requestAnimationFrame(animate);
+  cube.rotation.x += 0.01;
+  cube.rotation.y += 0.015;
+  renderer.render(scene, camera);
+}
+animate();
+```
+
+### Python render blocks
+
+Insert a block with `,py`. Configure the Python path on first launch. Your code
+must write an SVG to `__gtkv__.renderer`.
+
+```python
+import matplotlib.pyplot as plt
+
+fig, ax = plt.subplots()
+ax.plot([0, 1, 2], [0, 1, 0.5])
+fig.savefig(__gtkv__.renderer, format="svg", dpi=200, transparent=True, bbox_inches="tight")
+```
+
+### LaTeX blocks
+
+Insert a block with `,ltx` and write raw LaTeX. KaTeX renders it via WebKit.
+
+```
+\int_0^\infty e^{-x^2} dx = \frac{\sqrt{\pi}}{2}
+```
+
 ### `.docv` text format
 
 Blocks are stored as plain text with block headers (SQLite is no longer used):
@@ -101,7 +152,7 @@ Blocks are stored as plain text with block headers (SQLite is no longer used):
 My notes...
 
 ::three
-<three.js html>
+<three.js module JS>
 
 ::pyimage
 format: svg

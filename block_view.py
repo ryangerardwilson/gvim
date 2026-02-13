@@ -40,7 +40,7 @@ class BlockEditorView(Gtk.ScrolledWindow):
 
         self._column = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=0)
         self._column.set_margin_top(24)
-        self._column.set_margin_bottom(24)
+        self._column.set_margin_bottom(160)
         self._column.set_margin_start(24)
         self._column.set_margin_end(24)
         self._column.set_valign(Gtk.Align.START)
@@ -139,6 +139,8 @@ class BlockEditorView(Gtk.ScrolledWindow):
             return
         top = allocation.y
         bottom = allocation.y + allocation.height
+        if self._selected_index == len(self._block_widgets) - 1:
+            bottom += 120
         view_top = vadjustment.get_value()
         view_bottom = view_top + vadjustment.get_page_size()
         if top < view_top:
