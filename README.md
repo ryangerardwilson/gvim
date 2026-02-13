@@ -82,6 +82,13 @@ python main.py
 - `-q` — quickstart a new document with demo content.
 - `-h` — show CLI help.
 
+### Theme assumptions
+
+The GTK UI uses transparent backgrounds and light text. It is intentionally
+optimized for dark terminals and dark desktops. For best contrast, run `gtkv`
+with a black or near-black terminal background. On light themes the UI will
+look washed out because the text colors are tuned for dark surfaces.
+
 ### Leader commands
 
 Leader is `,` followed by a short token:
@@ -125,6 +132,13 @@ The installer drops a completion script into
 Insert a block with `,js` and write module JS. The runtime provides `THREE`,
 `scene`, `camera`, `renderer`, and `canvas` as globals.
 
+Scope and expectations:
+
+- The app ships only the core `three.module.min.js` build (no examples or loaders).
+- There is no build pipeline; your code is executed as an ES module at runtime.
+- If you need loaders (GLTFLoader, etc.), you must import them yourself (CDN or local).
+- The WebKit view uses a transparent canvas at a fixed 300px height.
+
 ```js
 const geometry = new THREE.BoxGeometry(1, 1, 1);
 const material = new THREE.MeshStandardMaterial({ color: 0xaaaaaa });
@@ -149,6 +163,15 @@ animate();
 
 Insert a block with `,py`. Configure the Python path on first launch. Your code
 must write an SVG to `__gtkv__.renderer`.
+
+Defaults applied by the renderer to match the dark UI:
+
+- Matplotlib rcParams set text/axes/tick colors to `#d0d0d0`.
+- Figure and axes backgrounds are transparent.
+- Saved SVGs are post-processed to replace black fills/strokes with `#d0d0d0`.
+
+If you override colors, prefer light tones so plots stay readable on dark
+backgrounds.
 
 ```python
 import matplotlib.pyplot as plt
