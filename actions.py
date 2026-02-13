@@ -5,7 +5,7 @@ from __future__ import annotations
 from pathlib import Path
 
 from app_state import AppState
-from block_model import LatexBlock, PythonImageBlock, TextBlock, ThreeBlock
+from block_model import LatexBlock, MapBlock, PythonImageBlock, TextBlock, ThreeBlock
 from block_registry import get_block_capabilities
 from three_template import default_three_template
 
@@ -80,6 +80,34 @@ def insert_latex_block(state: AppState) -> bool:
     return True
 
 
+def insert_map_block(state: AppState) -> bool:
+    if state.document is None or state.view is None:
+        return False
+    insert_at = state.view.get_selected_index()
+    template = (
+        "// Leaflet globals: L, map, tileLayer\n"
+        "const points = [\n"
+        "  [40.7484, -73.9857],\n"
+        "  [51.5072, -0.1276],\n"
+        "  [48.8566, 2.3522],\n"
+        "];\n"
+        "points.forEach(([lat, lon]) => {\n"
+        "  L.circleMarker([lat, lon], {\n"
+        "    radius: 5,\n"
+        "    color: '#d0d0d0',\n"
+        "    fillColor: '#d0d0d0',\n"
+        "    fillOpacity: 0.9,\n"
+        "  }).addTo(map);\n"
+        "});\n"
+        "const bounds = L.latLngBounds(points);\n"
+        "map.fitBounds(bounds.pad(0.2));\n"
+    )
+    state.document.insert_block_after(insert_at, MapBlock(template))
+    state.view.set_document(state.document)
+    state.view.move_selection(1)
+    return True
+
+
 def move_selection(state: AppState, delta: int) -> bool:
     if state.view is None:
         return False
@@ -122,6 +150,8 @@ def get_selected_edit_payload(
         content = block.source
     elif isinstance(block, LatexBlock):
         content = block.source
+    elif isinstance(block, MapBlock):
+        content = block.source
     else:
         return None
 
@@ -139,6 +169,8 @@ def update_block_from_editor(
         state.document.set_python_image_block(index, updated_text)
     elif kind == "latex":
         state.document.set_latex_block(index, updated_text)
+    elif kind == "map":
+        state.document.set_map_block(index, updated_text)
     else:
         state.document.set_text_block(index, updated_text)
     state.view.set_document(state.document)

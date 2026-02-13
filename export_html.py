@@ -9,6 +9,7 @@ import py_runner
 from block_model import (
     BlockDocument,
     LatexBlock,
+    MapBlock,
     PythonImageBlock,
     TextBlock,
     ThreeBlock,
@@ -18,6 +19,10 @@ from block_model import (
 KATEX_CSS_CDN = "https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.css"
 KATEX_JS_CDN = "https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.js"
 THREE_JS_CDN = "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.min.js"
+LEAFLET_CSS_CDN = "https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+LEAFLET_JS_CDN = "https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
+LEAFLET_TILE_URL = "https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png"
+LEAFLET_TILE_ATTR = "&copy; OpenStreetMap contributors &copy; CARTO"
 
 
 def export_document(
@@ -30,6 +35,7 @@ def export_document(
 def _build_html(document: BlockDocument, python_path: str | None) -> str:
     blocks_html = []
     latex_sources = []
+    map_sources = []
     toc_text = _build_toc(document)
     for index, block in enumerate(document.blocks):
         if isinstance(block, TextBlock):
@@ -42,11 +48,19 @@ def _build_html(document: BlockDocument, python_path: str | None) -> str:
             block_id = f"latex-{len(latex_sources)}"
             latex_sources.append((block_id, block.source))
             blocks_html.append(f'<div class="block block-latex" id="{block_id}"></div>')
+        elif isinstance(block, MapBlock):
+            block_id = f"map-{len(map_sources)}"
+            map_sources.append((block_id, block.source))
+            blocks_html.append(f'<div class="block block-map" id="{block_id}"></div>')
 
     blocks_joined = "".join(blocks_html)
     latex_items = "".join(
         f"      latexBlocks.push([{_js_string(block_id)}, {_js_string(source)}]);\n"
         for block_id, source in latex_sources
+    )
+    map_items = "".join(
+        f"      mapBlocks.push([{_js_string(block_id)}, {_js_string(source)}]);\n"
+        for block_id, source in map_sources
     )
     return (
         "<!doctype html>\n"
@@ -55,6 +69,7 @@ def _build_html(document: BlockDocument, python_path: str | None) -> str:
         '    <meta charset="utf-8" />\n'
         '    <meta name="viewport" content="width=device-width, initial-scale=1" />\n'
         f'    <link rel="stylesheet" href="{KATEX_CSS_CDN}" />\n'
+        f'    <link rel="stylesheet" href="{LEAFLET_CSS_CDN}" />\n'
         "    <style>\n"
         "      :root {\n"
         "        color-scheme: dark;\n"
@@ -84,6 +99,8 @@ def _build_html(document: BlockDocument, python_path: str | None) -> str:
         "      .block-pyimage img { max-width: 100%; height: auto; display: inline-block; }\n"
         "      .block-three canvas { width: 100%; height: 300px; display: block; }\n"
         "      .block-latex { font-size: 20px; color: #d0d0d0; }\n"
+        "      .block-map { height: 320px; }\n"
+        "      .block-map > div { height: 100%; }\n"
         "    </style>\n"
         "  </head>\n"
         "  <body>\n"
@@ -91,14 +108,29 @@ def _build_html(document: BlockDocument, python_path: str | None) -> str:
         f"{blocks_joined}\n"
         "    </main>\n"
         f'    <script src="{KATEX_JS_CDN}"></script>\n'
+        f'    <script src="{LEAFLET_JS_CDN}"></script>\n'
         "    <script>\n"
         "      const latexBlocks = [];\n"
         f"{latex_items}"
+        "      const mapBlocks = [];\n"
+        f"{map_items}"
         "      for (const [id, src] of latexBlocks) {\n"
         "        const el = document.getElementById(id);\n"
         "        if (!el) continue;\n"
         "        try { katex.render(src, el, { throwOnError: false, displayMode: true }); }\n"
         "        catch (err) { el.textContent = String(err); }\n"
+        "      }\n"
+        "      for (const [id, src] of mapBlocks) {\n"
+        "        const el = document.getElementById(id);\n"
+        "        if (!el) continue;\n"
+        "        const map = L.map(el, { zoomControl: false, attributionControl: true });\n"
+        f"        const tileLayer = L.tileLayer('{LEAFLET_TILE_URL}', {{ attribution: '{LEAFLET_TILE_ATTR}' }}).addTo(map);\n"
+        "        try {\n"
+        "          const fn = new Function('L', 'map', 'tileLayer', src);\n"
+        "          fn(L, map, tileLayer);\n"
+        "        } catch (err) {\n"
+        "          el.textContent = String(err);\n"
+        "        }\n"
         "      }\n"
         "      document.addEventListener('keydown', (event) => {\n"
         "        if (event.target && event.target.tagName === 'INPUT') return;\n"

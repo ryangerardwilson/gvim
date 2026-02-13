@@ -34,7 +34,12 @@ class LatexBlock:
     source: str
 
 
-Block = TextBlock | ThreeBlock | PythonImageBlock | LatexBlock
+@dataclass(frozen=True)
+class MapBlock:
+    source: str
+
+
+Block = TextBlock | ThreeBlock | PythonImageBlock | LatexBlock | MapBlock
 
 
 class BlockDocument:
@@ -135,6 +140,14 @@ class BlockDocument:
             )
             self._dirty = True
 
+    def set_map_block(self, index: int, source: str) -> None:
+        if index < 0 or index >= len(self._blocks):
+            return
+        block = self._blocks[index]
+        if isinstance(block, MapBlock):
+            self._blocks[index] = MapBlock(source)
+            self._dirty = True
+
     def set_latex_block(self, index: int, source: str) -> None:
         if index < 0 or index >= len(self._blocks):
             return
@@ -182,6 +195,24 @@ def sample_document() -> BlockDocument:
                 format="svg",
             ),
             LatexBlock(r"\int_0^\infty e^{-x^2} dx = \frac{\sqrt{\pi}}{2}"),
+            MapBlock(
+                "// Leaflet globals: L, map, tileLayer\n"
+                "const points = [\n"
+                "  [40.7484, -73.9857],\n"
+                "  [51.5072, -0.1276],\n"
+                "  [48.8566, 2.3522],\n"
+                "];\n"
+                "points.forEach(([lat, lon]) => {\n"
+                "  L.circleMarker([lat, lon], {\n"
+                "    radius: 5,\n"
+                "    color: '#d0d0d0',\n"
+                "    fillColor: '#d0d0d0',\n"
+                "    fillOpacity: 0.9,\n"
+                "  }).addTo(map);\n"
+                "});\n"
+                "const bounds = L.latLngBounds(points);\n"
+                "map.fitBounds(bounds.pad(0.2));\n"
+            ),
             TextBlock(
                 "Heading3",
                 kind="h3",

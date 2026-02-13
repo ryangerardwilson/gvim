@@ -37,6 +37,7 @@ need to recreate Vim modes internally.
   - `py_runner.py` for Python render execution
   - `export_html.py` for HTML export
   - `latex_template.py` for KaTeX HTML boilerplate
+  - `map_template.py` for Leaflet map HTML boilerplate
   - `style.css` for UI styling
   - `three_template.py` for 3D block HTML boilerplate
   - `three.module.min.js` for bundled Three.js
@@ -80,6 +81,9 @@ Runs Python render blocks and returns SVG output.
 
 ### `export_html.py`
 Exports `.docv` files to a dark HTML page with CDN assets.
+
+### `map_template.py`
+Leaflet map HTML boilerplate (dark tile layer).
 
 ### `style.css`
 Visual styling for the block UI.

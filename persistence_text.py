@@ -7,6 +7,7 @@ from pathlib import Path
 from block_model import (
     BlockDocument,
     LatexBlock,
+    MapBlock,
     PythonImageBlock,
     TextBlock,
     ThreeBlock,
@@ -58,6 +59,8 @@ def _parse_blocks(raw: str) -> list:
             blocks.append(PythonImageBlock(content, format=fmt))
         elif current_type == "latex":
             blocks.append(LatexBlock(content))
+        elif current_type == "map":
+            blocks.append(MapBlock(content))
         current_type = None
         current_lines = []
         current_meta = {}
@@ -103,6 +106,10 @@ def _serialize_blocks(document: BlockDocument) -> str:
             continue
         if isinstance(block, LatexBlock):
             parts.append("::latex")
+            parts.append(block.source.rstrip("\n"))
+            continue
+        if isinstance(block, MapBlock):
+            parts.append("::map")
             parts.append(block.source.rstrip("\n"))
             continue
     return "\n".join(parts).rstrip("\n") + "\n"

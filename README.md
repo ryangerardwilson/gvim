@@ -59,13 +59,14 @@ python main.py
 
 - `gtkv` — start the editor.
 - `gtkv doc.docv` — open an existing document.
-- `,p` — insert a paragraph block.
+- `,n` — insert a paragraph block.
 - `,ht` — insert a title block.
 - `,h1` / `,h2` / `,h3` — insert heading blocks.
 - `,toc` — insert a table of contents block.
 - `,js` — insert a 3D block and edit its Three.js module JS in Vim.
 - `,py` — insert a Python render block (SVG output).
 - `,ltx` — insert a LaTeX block rendered with KaTeX.
+- `,map` — insert a map block (Leaflet JS).
 - `j/k` — move between blocks.
 - `Enter` — open the selected text or code block in Vim.
 - Exit Vim — refreshes the block content in GTK.
@@ -79,13 +80,14 @@ python main.py
 
 Leader is `,` followed by a short token:
 
-- `,p` paragraph
+- `,n` paragraph
 - `,ht` title
 - `,h1` / `,h2` / `,h3` headings
 - `,toc` table of contents
 - `,js` Three.js block
 - `,py` Python render block
 - `,ltx` LaTeX block
+- `,map` map block
 
 ### Bash completion
 
@@ -106,6 +108,7 @@ The installer drops a completion script into
 - LaTeX blocks render via KaTeX in a WebKit view with local assets.
 - Image blocks are not supported in the text `.docv` format.
 - HTML export uses CDN assets for Three.js and KaTeX, and embeds Python renders as base64 SVG.
+- Map blocks render GeoJSON via Leaflet with a dark tile layer (CDN assets).
 
 ---
 
@@ -157,6 +160,30 @@ Insert a block with `,ltx` and write raw LaTeX. KaTeX renders it via WebKit.
 \int_0^\infty e^{-x^2} dx = \frac{\sqrt{\pi}}{2}
 ```
 
+### Map blocks
+
+Insert a block with `,map` and write Leaflet JS. The runtime provides `L`,
+`map`, and `tileLayer` globals.
+
+```js
+const points = [
+  [40.7484, -73.9857],
+  [51.5072, -0.1276],
+  [48.8566, 2.3522],
+];
+
+points.forEach(([lat, lon]) => {
+  L.circleMarker([lat, lon], {
+    radius: 5,
+    color: "#d0d0d0",
+    fillColor: "#d0d0d0",
+    fillOpacity: 0.9,
+  }).addTo(map);
+});
+
+map.fitBounds(L.latLngBounds(points).pad(0.2));
+```
+
 ### `.docv` text format
 
 Blocks are stored as plain text with block headers (SQLite is no longer used):
@@ -176,6 +203,9 @@ format: svg
 
 ::latex
 \int_0^\infty e^{-x^2} dx = \frac{\sqrt{\pi}}{2}
+
+::map
+// Leaflet globals: L, map, tileLayer
 ```
 
 ### HTML export

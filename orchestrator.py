@@ -176,6 +176,9 @@ class Orchestrator:
         if self._leader_buffer == "ltx":
             self._leader_active = False
             return self._insert_latex_block()
+        if self._leader_buffer == "map":
+            self._leader_active = False
+            return self._insert_map_block()
         if self._leader_buffer == "ht":
             self._leader_active = False
             return actions.insert_text_block(self._state, kind="title")
@@ -188,7 +191,7 @@ class Orchestrator:
         if self._leader_buffer == "h3":
             self._leader_active = False
             return actions.insert_text_block(self._state, kind="h3")
-        if self._leader_buffer == "p":
+        if self._leader_buffer == "n":
             self._leader_active = False
             return actions.insert_text_block(self._state, kind="body")
         if self._leader_buffer == "toc":
@@ -235,6 +238,11 @@ class Orchestrator:
 
     def _insert_latex_block(self) -> bool:
         if not actions.insert_latex_block(self._state):
+            return False
+        return self._open_selected_block_editor()
+
+    def _insert_map_block(self) -> bool:
+        if not actions.insert_map_block(self._state):
             return False
         return self._open_selected_block_editor()
 

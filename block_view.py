@@ -26,11 +26,13 @@ except Exception:
 from block_model import (
     BlockDocument,
     LatexBlock,
+    MapBlock,
     PythonImageBlock,
     TextBlock,
     ThreeBlock,
 )
 from latex_template import render_latex_html
+from map_template import render_map_html
 from three_template import render_three_html
 
 
@@ -73,6 +75,8 @@ class BlockEditorView(Gtk.ScrolledWindow):
                 widget = _PyImageBlockView(block)
             elif isinstance(block, LatexBlock):
                 widget = _LatexBlockView(block.source)
+            elif isinstance(block, MapBlock):
+                widget = _MapBlockView(block.source)
             else:
                 continue
             self._block_widgets.append(widget)
@@ -320,6 +324,48 @@ class _LatexBlockView(Gtk.Frame):
         view.load_html(render_latex_html(source), "file:///")
         if hasattr(view, "connect") and hasattr(view, "run_javascript"):
             view.connect("load-changed", self._on_latex_load_changed)
+        box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
+        _apply_block_padding(box)
+        box.append(view)
+        self.set_child(box)
+
+
+class _MapBlockView(Gtk.Frame):
+    def __init__(self, source: str) -> None:
+        super().__init__()
+        self.add_css_class("block")
+        self.add_css_class("block-map")
+
+        if WebKit is None:
+            label = Gtk.Label(label="WebKitGTK not available for map blocks")
+            _apply_block_padding(label)
+            self.set_child(label)
+            return
+
+        if not source.strip():
+            label = Gtk.Label(label="Empty map block")
+            _apply_block_padding(label)
+            self.set_child(label)
+            return
+
+        view = WebKit.WebView()
+        settings = view.get_settings()
+        if settings is not None:
+            if hasattr(settings, "set_enable_javascript"):
+                settings.set_enable_javascript(True)
+            if hasattr(settings, "set_allow_universal_access_from_file_urls"):
+                settings.set_allow_universal_access_from_file_urls(True)
+        background = Gdk.RGBA()
+        background.red = 0.0
+        background.green = 0.0
+        background.blue = 0.0
+        background.alpha = 0.0
+        if hasattr(view, "set_background_color"):
+            view.set_background_color(background)
+        view.set_vexpand(False)
+        view.set_hexpand(True)
+        view.set_size_request(-1, 320)
+        view.load_html(render_map_html(source), "file:///")
         box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
         _apply_block_padding(box)
         box.append(view)
