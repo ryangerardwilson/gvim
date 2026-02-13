@@ -20,12 +20,11 @@ import actions
 import config
 import document_io
 import editor
-import picker
 import py_runner
 from export_html import export_document
 from _version import __version__
 from app_state import AppState
-from block_model import PythonImageBlock, sample_document
+from block_model import BlockDocument, PythonImageBlock, sample_document
 from block_view import BlockEditorView
 
 
@@ -52,10 +51,11 @@ class Orchestrator:
         self._leader_active = False
         self._leader_buffer = ""
         self._leader_start = 0.0
+        self._demo = False
 
     def run(self, argv: Sequence[str] | None = None) -> int:
         args = list(sys.argv[1:] if argv is None else argv)
-        options, gtk_args = parse_args(args)
+        options, gtk_args, parser = parse_args(args)
         if options.version:
             print(_get_version())
             return 0
@@ -64,17 +64,26 @@ class Orchestrator:
         if options.export:
             return _run_export(options.export, options.file)
 
-        document_path = Path(options.file).expanduser() if options.file else None
+        if not options.file:
+            parser.print_help()
+            return 1
+
+        self._demo = options.demo
+
+        document_path = Path(options.file).expanduser()
         self._python_path = config.get_python_path()
         if not self._python_path:
             self._python_path = _prompt_python_path_cli()
             if self._python_path:
                 config.set_python_path(self._python_path)
 
-        if document_path and document_path.exists():
+        if document_path.exists():
             self._state.document = document_io.load(document_path)
-        elif document_path:
-            self._state.document = sample_document()
+        else:
+            if self._demo:
+                self._state.document = sample_document()
+            else:
+                self._state.document = BlockDocument([])
             self._state.document.set_path(document_path)
 
         app = BlockApp(self)
@@ -87,7 +96,7 @@ class Orchestrator:
 
         document = self._state.document
         if document is None:
-            document = sample_document()
+            document = BlockDocument([])
             self._state.document = document
 
         view: BlockEditorView = BlockEditorView()
@@ -255,19 +264,8 @@ class Orchestrator:
         if document.path is not None:
             document_io.save(document.path, document)
             return True
-        return self._begin_save_selector_o()
-
-    def _begin_save_selector_o(self) -> bool:
-        document = self._state.document
-        if document is None:
-            return False
-
-        start_dir = _get_picker_start_dir()
-
-        def _on_pick(path: Path) -> None:
-            document_io.save(path, document)
-
-        return picker.begin_save_selector_o(start_dir, _on_pick)
+        print("No document path set; launch with a .docv filename", file=sys.stderr)
+        return False
 
     def _render_python_image(self, index: int) -> None:
         document = self._state.document
@@ -312,13 +310,6 @@ class Orchestrator:
                 self._render_python_image(index)
 
 
-def _get_picker_start_dir() -> Path:
-    downloads_dir = Path.home() / "Downloads"
-    if downloads_dir.exists():
-        return downloads_dir
-    return Path.home()
-
-
 def _load_css(css_path: Path) -> None:
     if not css_path.exists():
         return
@@ -348,19 +339,20 @@ def _prompt_python_path_cli() -> str | None:
     return text
 
 
-def parse_args(argv: Sequence[str]) -> tuple[argparse.Namespace, list[str]]:
+def parse_args(argv: Sequence[str]) -> tuple[argparse.Namespace, list[str], argparse.ArgumentParser]:
     parser = argparse.ArgumentParser(
         description="Block-based GTK4 editor with external Vim editing"
     )
     parser.add_argument("-v", "--version", action="store_true", help="Show version")
     parser.add_argument("-u", "--upgrade", action="store_true", help="Upgrade")
     parser.add_argument("-e", "--export", help="Export .docv to HTML")
-    parser.add_argument("file", nargs="?", help="Optional .docv document to open")
+    parser.add_argument("-q", action="store_true", dest="demo", help="Quickstart content")
+    parser.add_argument("file", nargs="?", help=".docv document to open")
     if hasattr(parser, "parse_known_intermixed_args"):
         args, gtk_args = parser.parse_known_intermixed_args(argv)
     else:
         args, gtk_args = parser.parse_known_args(argv)
-    return args, gtk_args
+    return args, gtk_args, parser
 
 
 def _run_upgrade() -> int:

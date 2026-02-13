@@ -12,7 +12,6 @@ session for full editing power. Documents are stored as a git-friendly text
 - GTK4 runtime libraries.
 - PyGObject + GObject Introspection (for running from source).
 - A terminal Vim (`nvim`, `vim`, or `vi`).
-- Optional: the `o` file picker for save path selection.
 - Optional: WebKitGTK for 3D blocks.
 - Optional: Python + Matplotlib for Python render blocks.
 - Optional: WebKitGTK for LaTeX blocks (bundled KaTeX assets).
@@ -57,9 +56,8 @@ python main.py
 
 ## Usage
 
-- `gtkv` — start the editor.
-- `gtkv doc.docv` — open an existing document.
-- `,n` — insert a paragraph block.
+- `gtkv doc.docv` — open an existing document (required).
+- `,n` — insert a normal text block.
 - `,ht` — insert a title block.
 - `,h1` / `,h2` / `,h3` — insert heading blocks.
 - `,toc` — insert a table of contents block.
@@ -70,17 +68,18 @@ python main.py
 - `j/k` — move between blocks.
 - `Enter` — open the selected text or code block in Vim.
 - Exit Vim — refreshes the block content in GTK.
-- `Ctrl+S` — save the current document (prompts for a path on first save).
+- `Ctrl+S` — save the current document.
 - `-v` — print installed version.
 - `-u` — upgrade to the latest release.
 - `-e output.html doc.docv` — export a document to HTML.
+- `-q` — quickstart a new document with demo content.
 - `-h` — show CLI help.
 
 ### Leader commands
 
 Leader is `,` followed by a short token:
 
-- `,n` paragraph
+- `,n` normal text
 - `,ht` title
 - `,h1` / `,h2` / `,h3` headings
 - `,toc` table of contents

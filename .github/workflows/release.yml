@@ -62,7 +62,7 @@ jobs:
               mkdir -p dist/gtkv
               cp -a main.py orchestrator.py actions.py app_state.py block_model.py \
                 block_registry.py block_view.py config.py document_io.py editor.py \
-                picker.py py_runner.py persistence_text.py export_html.py style.css \
+                py_runner.py persistence_text.py export_html.py style.css \
                 three_template.py three.module.min.js latex_template.py map_template.py \
                 katex.min.js katex.min.css fonts _version.py AGENTS.md README.md \
                 completions_gtkv.bash dist/gtkv/

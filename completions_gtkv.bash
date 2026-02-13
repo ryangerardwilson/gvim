@@ -11,7 +11,7 @@ _gtkv_complete() {
       COMPREPLY=( $(compgen -f -- "${cur#--export=}") )
       ;;
     -*)
-      COMPREPLY=( $(compgen -W "-h --help -v --version -u --upgrade -e --export" -- "${cur}") )
+      COMPREPLY=( $(compgen -W "-h --help -v --version -u --upgrade -e --export -q" -- "${cur}") )
       ;;
     *)
       if [[ "${prev}" == "-e" || "${prev}" == "--export" ]]; then
