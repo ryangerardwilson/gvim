@@ -91,6 +91,13 @@ class BlockDocument:
         self._dirty = True
         return True
 
+    def remove_block(self, index: int) -> Block | None:
+        if index < 0 or index >= len(self._blocks):
+            return None
+        block = self._blocks.pop(index)
+        self._dirty = True
+        return block
+
     def remove_text_blocks_by_kind(self, kind: str) -> None:
         original_len = len(self._blocks)
         self._blocks = [

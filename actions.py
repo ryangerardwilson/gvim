@@ -2,10 +2,18 @@
 
 from __future__ import annotations
 
+import copy
 from pathlib import Path
 
 from app_state import AppState
-from block_model import LatexBlock, MapBlock, PythonImageBlock, TextBlock, ThreeBlock
+from block_model import (
+    Block,
+    LatexBlock,
+    MapBlock,
+    PythonImageBlock,
+    TextBlock,
+    ThreeBlock,
+)
 from block_registry import get_block_capabilities
 from three_template import default_three_template
 
@@ -125,6 +133,29 @@ def move_block(state: AppState, delta: int) -> bool:
         return False
     state.view.move_widget(index, target)
     state.view.set_selected_index(target)
+    return True
+
+
+def delete_selected_block(state: AppState) -> Block | None:
+    if state.document is None or state.view is None:
+        return None
+    if not state.document.blocks:
+        return None
+    index = state.view.get_selected_index()
+    block = state.document.remove_block(index)
+    if block is None:
+        return None
+    state.view.set_document(state.document)
+    return block
+
+
+def paste_after_selected(state: AppState, block: Block) -> bool:
+    if state.document is None or state.view is None:
+        return False
+    insert_at = state.view.get_selected_index()
+    state.document.insert_block_after(insert_at, copy.deepcopy(block))
+    state.view.set_document(state.document)
+    state.view.set_selected_index(min(insert_at + 1, len(state.document.blocks) - 1))
     return True
 
 

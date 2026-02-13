@@ -55,6 +55,8 @@ class Orchestrator:
         self._leader_active = False
         self._leader_buffer = ""
         self._leader_start = 0.0
+        self._delete_pending = False
+        self._delete_start = 0.0
         self._demo = False
 
     def run(self, argv: Sequence[str] | None = None) -> int:
@@ -123,6 +125,8 @@ class Orchestrator:
         return self._handle_doc_keys(keyval, state)
 
     def _handle_doc_keys(self, keyval, state) -> bool:
+        if self._handle_delete_keys(keyval, state):
+            return True
         if self._handle_leader_keys(keyval, state):
             return True
         if keyval in (ord("?"), Gdk.KEY_question):
@@ -157,6 +161,16 @@ class Orchestrator:
             if keyval in (ord("k"), ord("K")):
                 return actions.move_block(self._state, -1)
 
+        if keyval in (ord("p"), ord("P")):
+            if self._state.clipboard_block is None:
+                self._show_status("Nothing to paste", "error")
+                return True
+            if actions.paste_after_selected(self._state, self._state.clipboard_block):
+                self._show_status("Pasted block", "success")
+            else:
+                self._show_status("Paste failed", "error")
+            return True
+
         if keyval in (ord("j"), ord("J"), Gdk.KEY_Down):
             actions.move_selection(self._state, 1)
             self._state.last_doc_key = keyval
@@ -187,6 +201,34 @@ class Orchestrator:
             return True
 
         self._state.last_doc_key = None
+        return False
+
+    def _handle_delete_keys(self, keyval, state) -> bool:
+        if state & Gdk.ModifierType.CONTROL_MASK:
+            if self._delete_pending:
+                self._delete_pending = False
+            return False
+
+        now = time.monotonic()
+        if self._delete_pending and now - self._delete_start > 1.25:
+            self._delete_pending = False
+
+        if keyval in (ord("d"), ord("D")):
+            if not self._delete_pending:
+                self._delete_pending = True
+                self._delete_start = now
+                return True
+            self._delete_pending = False
+            deleted = actions.delete_selected_block(self._state)
+            if deleted is None:
+                self._show_status("Nothing to delete", "error")
+                return True
+            self._state.clipboard_block = deleted
+            self._show_status("Deleted block", "success")
+            return True
+
+        if self._delete_pending:
+            self._delete_pending = False
         return False
 
     def _handle_leader_keys(self, keyval, state) -> bool:

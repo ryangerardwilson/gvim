@@ -331,6 +331,8 @@ class BlockEditorView(Gtk.Box):
             "Navigation",
             "  j/k        move selection",
             "  Ctrl+j/k   move block",
+            "  dd         delete selected block",
+            "  p          paste deleted block",
             "  g/G        first/last block",
             "  Enter      edit selected block",
             "  q          quit without saving",
