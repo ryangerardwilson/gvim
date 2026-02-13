@@ -64,6 +64,10 @@ class Orchestrator:
             image_path = None
         self._image_path = image_path
         self._python_path = config.get_python_path()
+        if not self._python_path:
+            self._python_path = _prompt_python_path_cli()
+            if self._python_path:
+                config.set_python_path(self._python_path)
 
         if document_path and document_path.exists():
             self._state.document = document_io.load(document_path)
@@ -94,7 +98,6 @@ class Orchestrator:
         window.add_controller(controller)
 
         window.set_child(view)
-        self._ensure_python_path(window)
         window.present()
 
     def on_key_pressed(self, _controller, keyval, _keycode, state) -> bool:
@@ -245,18 +248,6 @@ class Orchestrator:
         )
         view.set_document(document)
 
-    def _ensure_python_path(self, window: Gtk.ApplicationWindow) -> None:
-        if self._python_path:
-            return
-        _show_python_path_prompt(window, self._set_python_path)
-
-    def _set_python_path(self, path: str | None) -> None:
-        if not path:
-            return
-        self._python_path = path
-        config.set_python_path(path)
-
-
 def _get_picker_start_dir() -> Path:
     downloads_dir = Path.home() / "Downloads"
     if downloads_dir.exists():
@@ -279,40 +270,18 @@ def _load_css(css_path: Path) -> None:
     )
 
 
-def _show_python_path_prompt(window: Gtk.ApplicationWindow, on_save) -> None:
-    dialog = Gtk.Dialog(title="Configure Python", transient_for=window, modal=True)
-    dialog.add_button("Cancel", Gtk.ResponseType.CANCEL)
-    dialog.add_button("Save", Gtk.ResponseType.OK)
-
-    content = dialog.get_content_area()
-    label = Gtk.Label(label="Python path for rendering:")
-    label.set_margin_top(12)
-    label.set_margin_bottom(6)
-    label.set_margin_start(12)
-    label.set_margin_end(12)
-    entry = Gtk.Entry()
-    entry.set_margin_bottom(12)
-    entry.set_margin_start(12)
-    entry.set_margin_end(12)
-    entry.set_placeholder_text("/home/user/venv/bin/python")
-    content.append(label)
-    content.append(entry)
-    dialog.show()
-
-    def _on_response(_dialog: Gtk.Dialog, response: int) -> None:
-        text = entry.get_text().strip()
-        dialog.destroy()
-        if response != Gtk.ResponseType.OK:
-            return
-        if not text:
-            return
-        if not os.path.exists(text):
-            return
-        if not os.access(text, os.X_OK):
-            return
-        on_save(text)
-
-    dialog.connect("response", _on_response)
+def _prompt_python_path_cli() -> str | None:
+    try:
+        text = input("Python path for rendering (leave blank to skip): ").strip()
+    except EOFError:
+        return None
+    if not text:
+        return None
+    if not os.path.exists(text):
+        return None
+    if not os.access(text, os.X_OK):
+        return None
+    return text
 
 
 def parse_args(argv: Sequence[str]) -> tuple[argparse.Namespace, list[str]]:
