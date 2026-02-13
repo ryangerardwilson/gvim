@@ -336,9 +336,37 @@ class _LatexBlockView(Gtk.Frame):
             view.set_background_color(background)
         view.set_vexpand(False)
         view.set_hexpand(True)
-        view.set_size_request(-1, 240)
+        view.set_size_request(-1, 80)
+        view.set_valign(Gtk.Align.START)
         view.load_html(render_latex_html(source), "file:///")
+        if hasattr(view, "connect"):
+            view.connect("load-changed", self._on_latex_load_changed)
         self.set_child(view)
+
+    def _on_latex_load_changed(self, view, load_event) -> None:
+        if WebKit is None:
+            return
+        if load_event != WebKit.LoadEvent.FINISHED:
+            return
+        def _on_js_finished(_view, result) -> None:
+            if WebKit is None:
+                return
+            try:
+                value = _view.run_javascript_finish(result)
+            except Exception:
+                return
+            try:
+                height = value.to_int64() if value is not None else 0
+            except Exception:
+                height = 0
+            if height and height > 0:
+                view.set_size_request(-1, int(height) + 8)
+
+        view.run_javascript(
+            "Math.ceil(document.body.scrollHeight)",
+            None,
+            _on_js_finished,
+        )
 
 
 def _three_module_uri() -> str:
