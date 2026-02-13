@@ -79,6 +79,16 @@ class BlockDocument:
             self._blocks.insert(index + 1, block)
         self._dirty = True
 
+    def remove_text_blocks_by_kind(self, kind: str) -> None:
+        original_len = len(self._blocks)
+        self._blocks = [
+            block
+            for block in self._blocks
+            if not (isinstance(block, TextBlock) and block.kind == kind)
+        ]
+        if len(self._blocks) != original_len:
+            self._dirty = True
+
     def set_text_block(self, index: int, text: str) -> None:
         if index < 0 or index >= len(self._blocks):
             return
