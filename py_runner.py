@@ -81,14 +81,14 @@ def _build_runner_script(
         "from types import SimpleNamespace\n"
         "import matplotlib as _mpl\n"
         "_mpl.rcParams.update({\n"
-        "    'text.color': '#ffffff',\n"
-        "    'axes.labelcolor': '#ffffff',\n"
-        "    'xtick.labelcolor': '#ffffff',\n"
-        "    'xtick.color': '#ffffff',\n"
-        "    'ytick.labelcolor': '#ffffff',\n"
-        "    'ytick.color': '#ffffff',\n"
-        "    'axes.edgecolor': '#ffffff',\n"
-        "    'axes.titlecolor': '#ffffff',\n"
+        "    'text.color': '#d0d0d0',\n"
+        "    'axes.labelcolor': '#d0d0d0',\n"
+        "    'xtick.labelcolor': '#d0d0d0',\n"
+        "    'xtick.color': '#d0d0d0',\n"
+        "    'ytick.labelcolor': '#d0d0d0',\n"
+        "    'ytick.color': '#d0d0d0',\n"
+        "    'axes.edgecolor': '#d0d0d0',\n"
+        "    'axes.titlecolor': '#d0d0d0',\n"
         "    'axes.facecolor': 'none',\n"
         "    'figure.facecolor': 'none',\n"
         "    'savefig.transparent': True,\n"
@@ -105,11 +105,11 @@ def _build_runner_script(
 def _replace_black_with_white_svg(svg_text: str) -> str:
     updated = svg_text
     replacements = {
-        "#000000": "#ffffff",
-        "#000": "#fff",
-        "rgb(0,0,0)": "rgb(255,255,255)",
-        "rgb(0, 0, 0)": "rgb(255,255,255)",
-        "black": "white",
+        "#000000": "#d0d0d0",
+        "#000": "#d0d0d0",
+        "rgb(0,0,0)": "rgb(208,208,208)",
+        "rgb(0, 0, 0)": "rgb(208,208,208)",
+        "black": "#d0d0d0",
     }
     for before, after in replacements.items():
         updated = updated.replace(before, after)
@@ -126,14 +126,14 @@ def _replace_black_with_white_svg(svg_text: str) -> str:
         r"(stroke\s*:\s*)(rgb\(0\s*,\s*0\s*,\s*0\)|rgb\(0%\s*,\s*0%\s*,\s*0%\)|rgba\(0\s*,\s*0\s*,\s*0\s*,\s*1\))",
     ]
     for pattern in patterns:
-        updated = re.sub(pattern, r"\1#ffffff", updated, flags=re.IGNORECASE)
+        updated = re.sub(pattern, r"\1#d0d0d0", updated, flags=re.IGNORECASE)
 
     def _force_text_fill(match: re.Match) -> str:
         prefix = match.group(1)
         attrs = match.group(2) or ""
         if "style=" in attrs:
             return f"{prefix}{_append_fill_style(attrs)}"
-        return f"{prefix}{attrs} style=\"fill:#ffffff\""
+        return f"{prefix}{attrs} style=\"fill:#d0d0d0\""
 
     updated = re.sub(
         r"(<g\s+id=\"text_\d+\")([^>]*)",
@@ -150,7 +150,7 @@ def _append_fill_style(attrs: str) -> str:
         return f"{attrs} style=\"fill:#ffffff\""
     style = match.group(1)
     if "fill:" in style:
-        updated_style = re.sub(r"fill\s*:[^;]+", "fill:#ffffff", style)
+        updated_style = re.sub(r"fill\s*:[^;]+", "fill:#d0d0d0", style)
     else:
-        updated_style = f"{style};fill:#ffffff"
+        updated_style = f"{style};fill:#d0d0d0"
     return attrs.replace(match.group(0), f"style=\"{updated_style}\"")
