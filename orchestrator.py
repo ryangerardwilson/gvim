@@ -24,7 +24,7 @@ import py_runner
 from export_html import export_document
 from _version import __version__
 from app_state import AppState
-from block_model import BlockDocument, PythonImageBlock, sample_document
+from block_model import BlockDocument, LatexBlock, MapBlock, PythonImageBlock, ThreeBlock, sample_document
 from block_view import BlockEditorView
 
 
@@ -169,6 +169,9 @@ class Orchestrator:
         if keyval in (Gdk.KEY_Return, Gdk.KEY_KP_Enter):
             return self._open_selected_block_editor()
 
+        if keyval in (ord("r"), ord("R")):
+            return self._rerender_selected_media()
+
         if keyval in (ord("q"), ord("Q")):
             self._quit()
             return True
@@ -255,6 +258,17 @@ class Orchestrator:
         editor.schedule_editor_poll(
             session, self._handle_editor_update, self._clear_editor
         )
+        return True
+
+    def _rerender_selected_media(self) -> bool:
+        document = self._state.document
+        view = self._state.view
+        if document is None or view is None:
+            return False
+        selected = view.get_selected_index()
+        view.set_document(document)
+        view.set_selected_index(selected)
+        self._render_python_images_on_start()
         return True
 
     def _handle_editor_update(self, index: int, kind: str, updated_text: str) -> None:

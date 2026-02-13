@@ -135,6 +135,20 @@ class BlockEditorView(Gtk.ScrolledWindow):
     def get_selected_index(self) -> int:
         return self._selected_index
 
+    def reload_media_at(self, index: int) -> bool:
+        if not self._block_widgets:
+            return False
+        if index < 0 or index >= len(self._block_widgets):
+            return False
+        widget = self._block_widgets[index]
+        if hasattr(widget, "reload_html"):
+            try:
+                widget.reload_html()
+                return True
+            except Exception:
+                return False
+        return False
+
     def set_selected_index(self, index: int) -> None:
         if not self._block_widgets:
             return
@@ -231,6 +245,7 @@ class BlockEditorView(Gtk.ScrolledWindow):
             "  g/G        first/last block",
             "  Enter      edit selected block",
             "  q          quit without saving",
+            "  r          re-render media block",
             "",
             "Blocks",
             "  ,n         normal text",
@@ -244,6 +259,7 @@ class BlockEditorView(Gtk.ScrolledWindow):
             "",
             "Other",
             "  Ctrl+S     save",
+            "  Ctrl+E     export html",
             "  Ctrl+T     save and exit",
             "  Ctrl+X     exit without saving",
             "  ?          toggle this help",
