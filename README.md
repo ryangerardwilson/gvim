@@ -90,7 +90,7 @@ The installer drops a completion script into
 
 ### `.docv` text format
 
-Blocks are stored as plain text with block headers:
+Blocks are stored as plain text with block headers (SQLite is no longer used):
 
 ```
 # GTKV v2
