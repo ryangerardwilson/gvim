@@ -131,12 +131,23 @@ class Orchestrator:
             return True
         if state & Gdk.ModifierType.CONTROL_MASK:
             if keyval in (ord("s"), ord("S")):
-                return self._save_document()
+                if self._save_document():
+                    self._show_status("Saved", "success")
+                else:
+                    self._show_status("Save failed", "error")
+                return True
             if keyval in (ord("e"), ord("E")):
-                return self._export_current_html()
+                if self._export_current_html():
+                    self._show_status("Exported HTML", "success")
+                else:
+                    self._show_status("Export failed", "error")
+                return True
             if keyval in (ord("t"), ord("T")):
                 if self._save_document():
+                    self._show_status("Saved", "success")
                     self._quit()
+                    return True
+                self._show_status("Save failed", "error")
                 return True
             if keyval in (ord("x"), ord("X")):
                 self._quit()
@@ -170,9 +181,6 @@ class Orchestrator:
 
         if keyval in (Gdk.KEY_Return, Gdk.KEY_KP_Enter):
             return self._open_selected_block_editor()
-
-        if keyval in (ord("r"), ord("R")):
-            return self._rerender_selected_media()
 
         if keyval in (ord("q"), ord("Q")):
             self._quit()
@@ -242,6 +250,10 @@ class Orchestrator:
             app.quit()
         else:
             raise SystemExit(0)
+
+    def _show_status(self, message: str, kind: str = "info") -> None:
+        if self._state.view is not None:
+            self._state.view.show_status(message, kind)
 
     def _open_selected_block_editor(self) -> bool:
         if self._state.active_editor is not None:

@@ -36,13 +36,21 @@ from map_template import render_map_html
 from three_template import render_three_html
 
 
-class BlockEditorView(Gtk.ScrolledWindow):
+class BlockEditorView(Gtk.Box):
     def __init__(self) -> None:
-        super().__init__()
-        self.set_policy(Gtk.PolicyType.AUTOMATIC, Gtk.PolicyType.AUTOMATIC)
-        self.set_can_focus(True)
-        self.set_propagate_natural_height(False)
-        self.set_propagate_natural_width(False)
+        super().__init__(orientation=Gtk.Orientation.VERTICAL, spacing=0)
+        self.set_hexpand(True)
+        self.set_vexpand(True)
+
+        self._scroller = Gtk.ScrolledWindow()
+        self._scroller.set_policy(
+            Gtk.PolicyType.AUTOMATIC, Gtk.PolicyType.AUTOMATIC
+        )
+        self._scroller.set_hexpand(True)
+        self._scroller.set_vexpand(True)
+        self._scroller.set_can_focus(True)
+        self._scroller.set_propagate_natural_height(False)
+        self._scroller.set_propagate_natural_width(False)
 
         self._block_widgets: list[Gtk.Widget] = []
         self._selected_index = 0
@@ -59,7 +67,26 @@ class BlockEditorView(Gtk.ScrolledWindow):
         self._help_scroll = 0.0
         self._help_selected = 0
 
-        self.set_child(self._column)
+        self._help_panel.set_visible(False)
+
+        self._status_timer_id: int | None = None
+        self._status_bar = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL)
+        self._status_bar.add_css_class("status-bar")
+        self._status_bar.set_hexpand(True)
+        self._status_bar.set_visible(False)
+        self._status_label = Gtk.Label()
+        self._status_label.set_halign(Gtk.Align.START)
+        self._status_label.set_hexpand(True)
+        self._status_bar.append(self._status_label)
+
+        self._root = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
+        self._root.set_hexpand(True)
+        self._root.set_vexpand(True)
+        self._root.append(self._column)
+        self._root.append(self._help_panel)
+        self._scroller.set_child(self._root)
+        self.append(self._scroller)
+        self.append(self._status_bar)
 
     def set_document(self, document: BlockDocument) -> None:
         for child in list(self._column):
@@ -132,13 +159,13 @@ class BlockEditorView(Gtk.ScrolledWindow):
         return self._selected_index
 
     def get_scroll_position(self) -> float:
-        vadjustment = self.get_vadjustment()
+        vadjustment = self._scroller.get_vadjustment()
         if vadjustment is None:
             return 0.0
         return vadjustment.get_value()
 
     def set_scroll_position(self, value: float) -> None:
-        vadjustment = self.get_vadjustment()
+        vadjustment = self._scroller.get_vadjustment()
         if vadjustment is None:
             return
         vadjustment.set_value(max(0.0, value))
@@ -172,7 +199,7 @@ class BlockEditorView(Gtk.ScrolledWindow):
             return
         widget = self._block_widgets[index]
         allocation = widget.get_allocation()
-        vadjustment = self.get_vadjustment()
+        vadjustment = self._scroller.get_vadjustment()
         if vadjustment is None:
             return
         page = vadjustment.get_page_size()
@@ -211,14 +238,36 @@ class BlockEditorView(Gtk.ScrolledWindow):
         if self._help_visible:
             self.clear_selection()
             self._help_scroll = (
-                self.get_vadjustment().get_value() if self.get_vadjustment() else 0.0
+                self._scroller.get_vadjustment().get_value()
+                if self._scroller.get_vadjustment()
+                else 0.0
             )
             self._help_selected = self._selected_index
-            self.set_child(self._help_panel)
+            self._column.set_visible(False)
+            self._help_panel.set_visible(True)
             self._help_panel.grab_focus()
         else:
-            self.set_child(self._column)
+            self._help_panel.set_visible(False)
+            self._column.set_visible(True)
             GLib.idle_add(self._restore_help_state)
+
+    def show_status(self, message: str, kind: str = "info") -> None:
+        self._status_label.set_text(message)
+        self._status_bar.remove_css_class("status-success")
+        self._status_bar.remove_css_class("status-error")
+        if kind == "success":
+            self._status_bar.add_css_class("status-success")
+        elif kind == "error":
+            self._status_bar.add_css_class("status-error")
+        self._status_bar.set_visible(True)
+        if self._status_timer_id is not None:
+            GLib.source_remove(self._status_timer_id)
+        self._status_timer_id = GLib.timeout_add(2500, self._clear_status)
+
+    def _clear_status(self) -> bool:
+        self._status_bar.set_visible(False)
+        self._status_timer_id = None
+        return False
 
     def _restore_help_state(self) -> bool:
         self.set_selected_index(self._help_selected, scroll=False)
@@ -240,7 +289,7 @@ class BlockEditorView(Gtk.ScrolledWindow):
             return
         widget = self._block_widgets[self._selected_index]
         allocation = widget.get_allocation()
-        vadjustment = self.get_vadjustment()
+        vadjustment = self._scroller.get_vadjustment()
         if vadjustment is None:
             return
         top = allocation.y
