@@ -70,6 +70,8 @@ class BlockEditorView(Gtk.Box):
         self._help_panel.set_visible(False)
 
         self._status_timer_id: int | None = None
+        self._scroll_idle_id: int | None = None
+        self._scroll_retries = 0
         self._status_bar = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL)
         self._status_bar.add_css_class("status-bar")
         self._status_bar.set_hexpand(True)
@@ -98,18 +100,8 @@ class BlockEditorView(Gtk.Box):
             [block for block in document.blocks if isinstance(block, TextBlock)]
         )
         for block in document.blocks:
-            if isinstance(block, TextBlock):
-                text = toc_text if block.kind == "toc" else block.text
-                widget = _TextBlockView(text, block.kind)
-            elif isinstance(block, ThreeBlock):
-                widget = _ThreeBlockView(block.source)
-            elif isinstance(block, PythonImageBlock):
-                widget = _PyImageBlockView(block)
-            elif isinstance(block, LatexBlock):
-                widget = _LatexBlockView(block.source)
-            elif isinstance(block, MapBlock):
-                widget = _MapBlockView(block.source)
-            else:
+            widget = self._build_widget(block, toc_text)
+            if widget is None:
                 continue
             self._block_widgets.append(widget)
             self._column.append(widget)
@@ -121,6 +113,36 @@ class BlockEditorView(Gtk.Box):
         self._column.queue_resize()
         GLib.idle_add(self._column.queue_resize)
 
+    def insert_widget_after(self, index: int, block, document: BlockDocument) -> None:
+        toc_text = _build_toc(
+            [item for item in document.blocks if isinstance(item, TextBlock)]
+        )
+        widget = self._build_widget(block, toc_text)
+        if widget is None:
+            return
+        insert_at = min(index + 1, len(self._block_widgets))
+        self._block_widgets.insert(insert_at, widget)
+        self._column.insert_child_after(
+            widget, self._block_widgets[insert_at - 1] if insert_at > 0 else None
+        )
+        self.refresh_toc(document)
+
+    def remove_widget_at(self, index: int, document: BlockDocument) -> None:
+        if index < 0 or index >= len(self._block_widgets):
+            return
+        widget = self._block_widgets.pop(index)
+        self._column.remove(widget)
+        self.refresh_toc(document)
+
+    def refresh_toc(self, document: BlockDocument) -> None:
+        toc_text = _build_toc(
+            [block for block in document.blocks if isinstance(block, TextBlock)]
+        )
+        for block, widget in zip(document.blocks, self._block_widgets):
+            if isinstance(block, TextBlock) and block.kind == "toc":
+                if isinstance(widget, _TextBlockView):
+                    widget.set_text(toc_text)
+
     def move_selection(self, delta: int) -> None:
         if not self._block_widgets:
             return
@@ -128,21 +150,21 @@ class BlockEditorView(Gtk.Box):
             0, min(self._selected_index + delta, len(self._block_widgets) - 1)
         )
         self._refresh_selection()
-        self._scroll_to_selected()
+        self._schedule_scroll_to_selected()
 
     def select_first(self) -> None:
         if not self._block_widgets:
             return
         self._selected_index = 0
         self._refresh_selection()
-        self._scroll_to_selected()
+        self._schedule_scroll_to_selected()
 
     def select_last(self) -> None:
         if not self._block_widgets:
             return
         self._selected_index = len(self._block_widgets) - 1
         self._refresh_selection()
-        self._scroll_to_selected()
+        self._schedule_scroll_to_selected()
 
     def focus_selected_block(self) -> bool:
         if not self._block_widgets:
@@ -190,7 +212,7 @@ class BlockEditorView(Gtk.Box):
         self._selected_index = max(0, min(index, len(self._block_widgets) - 1))
         self._refresh_selection()
         if scroll:
-            self._scroll_to_selected()
+            self._schedule_scroll_to_selected()
 
     def center_on_index(self, index: int) -> None:
         if not self._block_widgets:
@@ -284,24 +306,45 @@ class BlockEditorView(Gtk.Box):
             else:
                 widget.remove_css_class("block-selected")
 
-    def _scroll_to_selected(self) -> None:
-        if not self._block_widgets:
+    def _schedule_scroll_to_selected(self) -> None:
+        if self._scroll_idle_id is not None:
             return
+        self._scroll_retries = 0
+        self._scroll_idle_id = GLib.idle_add(self._deferred_scroll_to_selected)
+
+    def _deferred_scroll_to_selected(self) -> bool:
+        if self._scroll_to_selected_if_needed():
+            self._scroll_idle_id = None
+            return False
+        self._scroll_retries += 1
+        if self._scroll_retries >= 3:
+            self._scroll_idle_id = None
+            return False
+        return True
+
+    def _scroll_to_selected_if_needed(self) -> bool:
+        if not self._block_widgets:
+            return True
         widget = self._block_widgets[self._selected_index]
         allocation = widget.get_allocation()
         vadjustment = self._scroller.get_vadjustment()
         if vadjustment is None:
-            return
+            return True
+        if allocation.height <= 0 and allocation.y == 0:
+            return False
         top = allocation.y
         bottom = allocation.y + allocation.height
         if self._selected_index == len(self._block_widgets) - 1:
             bottom += 120
         view_top = vadjustment.get_value()
         view_bottom = view_top + vadjustment.get_page_size()
+        if view_top <= top and bottom <= view_bottom:
+            return True
         if top < view_top:
             vadjustment.set_value(max(0, top - 12))
         elif bottom > view_bottom:
             vadjustment.set_value(max(0, bottom - vadjustment.get_page_size() + 12))
+        return True
 
     @staticmethod
     def _build_help_overlay() -> Gtk.Widget:
@@ -333,7 +376,7 @@ class BlockEditorView(Gtk.Box):
             "  Ctrl+j/k   move block",
             "  dd         delete selected block",
             "  yy         yank selected block",
-            "  p          paste deleted block",
+            "  p          paste clipboard block",
             "  g/G        first/last block",
             "  Enter      edit selected block",
             "  q          quit without saving",
@@ -362,6 +405,21 @@ class BlockEditorView(Gtk.Box):
 
         overlay.append(panel)
         return overlay
+
+    @staticmethod
+    def _build_widget(block, toc_text: str) -> Gtk.Widget | None:
+        if isinstance(block, TextBlock):
+            text = toc_text if block.kind == "toc" else block.text
+            return _TextBlockView(text, block.kind)
+        if isinstance(block, ThreeBlock):
+            return _ThreeBlockView(block.source)
+        if isinstance(block, PythonImageBlock):
+            return _PyImageBlockView(block)
+        if isinstance(block, LatexBlock):
+            return _LatexBlockView(block.source)
+        if isinstance(block, MapBlock):
+            return _MapBlockView(block.source)
+        return None
 
 
 class _TextBlockView(Gtk.Frame):
@@ -396,6 +454,10 @@ class _TextBlockView(Gtk.Frame):
         buffer.set_text(text)
 
         self.set_child(self._text_view)
+
+    def set_text(self, text: str) -> None:
+        buffer = self._text_view.get_buffer()
+        buffer.set_text(text)
 
 
 class _ThreeBlockView(Gtk.Frame):

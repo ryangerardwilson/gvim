@@ -145,7 +145,13 @@ def delete_selected_block(state: AppState) -> Block | None:
     block = state.document.remove_block(index)
     if block is None:
         return None
-    state.view.set_document(state.document)
+    state.view.remove_widget_at(index, state.document)
+    if state.document.blocks:
+        state.view.set_selected_index(
+            min(index, len(state.document.blocks) - 1), scroll=True
+        )
+    else:
+        state.view.clear_selection()
     return block
 
 
@@ -154,8 +160,10 @@ def paste_after_selected(state: AppState, block: Block) -> bool:
         return False
     insert_at = state.view.get_selected_index()
     state.document.insert_block_after(insert_at, copy.deepcopy(block))
-    state.view.set_document(state.document)
-    state.view.set_selected_index(min(insert_at + 1, len(state.document.blocks) - 1))
+    inserted_index = min(insert_at + 1, len(state.document.blocks) - 1)
+    inserted_block = state.document.blocks[inserted_index]
+    state.view.insert_widget_after(insert_at, inserted_block, state.document)
+    state.view.set_selected_index(inserted_index)
     return True
 
 
