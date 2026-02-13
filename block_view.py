@@ -155,6 +155,11 @@ class BlockEditorView(Gtk.ScrolledWindow):
         self._block_widgets.insert(to_index, widget)
         self._column.remove(widget)
         self._column.insert_child_after(widget, self._block_widgets[to_index - 1] if to_index > 0 else None)
+        if hasattr(widget, "reload_html"):
+            try:
+                widget.reload_html()
+            except Exception:
+                pass
 
     def clear_selection(self) -> None:
         for widget in self._block_widgets:
@@ -395,6 +400,11 @@ class _LatexBlockView(Gtk.Frame):
         self.add_css_class("block")
         self.add_css_class("block-three")
 
+        self.view = None
+        self._html = None
+        self._box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
+        _apply_block_padding(self._box)
+
         if WebKit is None:
             label = Gtk.Label(label="WebKitGTK not available for LaTeX blocks")
             _apply_block_padding(label)
@@ -427,13 +437,18 @@ class _LatexBlockView(Gtk.Frame):
         view.set_hexpand(True)
         view.set_size_request(-1, 80)
         view.set_valign(Gtk.Align.START)
-        view.load_html(render_latex_html(source), "file:///")
+        self._html = render_latex_html(source)
+        view.load_html(self._html, "file:///")
         if hasattr(view, "connect") and hasattr(view, "run_javascript"):
             view.connect("load-changed", self._on_latex_load_changed)
-        box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
-        _apply_block_padding(box)
-        box.append(view)
-        self.set_child(box)
+        self.view = view
+        self._box.append(view)
+        self.set_child(self._box)
+
+    def reload_html(self) -> None:
+        if self.view is None or self._html is None:
+            return
+        self.view.load_html(self._html, "file:///")
 
 
 class _MapBlockView(Gtk.Frame):
@@ -441,6 +456,11 @@ class _MapBlockView(Gtk.Frame):
         super().__init__()
         self.add_css_class("block")
         self.add_css_class("block-map")
+
+        self.view = None
+        self._html = None
+        self._box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
+        _apply_block_padding(self._box)
 
         if WebKit is None:
             label = Gtk.Label(label="WebKitGTK not available for map blocks")
@@ -471,11 +491,16 @@ class _MapBlockView(Gtk.Frame):
         view.set_vexpand(False)
         view.set_hexpand(True)
         view.set_size_request(-1, 320)
-        view.load_html(render_map_html(source), "file:///")
-        box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
-        _apply_block_padding(box)
-        box.append(view)
-        self.set_child(box)
+        self._html = render_map_html(source)
+        view.load_html(self._html, "file:///")
+        self.view = view
+        self._box.append(view)
+        self.set_child(self._box)
+
+    def reload_html(self) -> None:
+        if self.view is None or self._html is None:
+            return
+        self.view.load_html(self._html, "file:///")
 
     def _on_latex_load_changed(self, view, load_event) -> None:
         if WebKit is None:
