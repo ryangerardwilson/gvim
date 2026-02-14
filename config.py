@@ -44,3 +44,17 @@ def set_python_path(python_path: str) -> None:
     config = load_config()
     config["python_path"] = python_path
     save_config(config)
+
+
+def get_ui_mode() -> str | None:
+    config = load_config()
+    value = config.get("mode")
+    if isinstance(value, str) and value.strip():
+        return value.strip().lower()
+    return None
+
+
+def set_ui_mode(mode: str) -> None:
+    config = load_config()
+    config["mode"] = mode
+    save_config(config)

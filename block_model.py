@@ -4,6 +4,8 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import List, Sequence
 
+import config
+from design_constants import colors_for
 from three_template import default_three_template
 
 
@@ -187,6 +189,7 @@ class BlockDocument:
 
 
 def sample_document() -> BlockDocument:
+    palette = colors_for(config.get_ui_mode() or "dark")
     blocks: List[Block] = [
         TextBlock(
             "Documentation Title",
@@ -278,8 +281,8 @@ def sample_document() -> BlockDocument:
                 "points.forEach(([lat, lon]) => {\n"
                 "  L.circleMarker([lat, lon], {\n"
                 "    radius: 5,\n"
-                "    color: '#d0d0d0',\n"
-                "    fillColor: '#d0d0d0',\n"
+                f"    color: '{palette.map_marker}',\n"
+                f"    fillColor: '{palette.map_marker}',\n"
                 "    fillOpacity: 0.9,\n"
                 "  }).addTo(map);\n"
                 "});\n"

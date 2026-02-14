@@ -33,6 +33,7 @@ from block_model import (
     TextBlock,
     ThreeBlock,
 )
+from design_constants import colors_for
 from latex_template import render_latex_html
 from map_template import render_map_html
 from three_template import render_three_html
@@ -48,10 +49,11 @@ class OutlineEntry:
 
 
 class BlockEditorView(Gtk.Box):
-    def __init__(self) -> None:
+    def __init__(self, ui_mode: str = "dark") -> None:
         super().__init__(orientation=Gtk.Orientation.VERTICAL, spacing=0)
         self.set_hexpand(True)
         self.set_vexpand(True)
+        self._ui_mode = ui_mode
 
         self._scroller = Gtk.ScrolledWindow()
         self._scroller.set_policy(
@@ -128,7 +130,7 @@ class BlockEditorView(Gtk.Box):
             [block for block in document.blocks if isinstance(block, TextBlock)]
         )
         for block in document.blocks:
-            widget = self._build_widget(block, toc_text)
+            widget = self._build_widget(block, toc_text, self._ui_mode)
             if widget is None:
                 continue
             self._block_widgets.append(widget)
@@ -145,7 +147,7 @@ class BlockEditorView(Gtk.Box):
         toc_text = _build_toc(
             [item for item in document.blocks if isinstance(item, TextBlock)]
         )
-        widget = self._build_widget(block, toc_text)
+        widget = self._build_widget(block, toc_text, self._ui_mode)
         if widget is None:
             return
         insert_at = min(index + 1, len(self._block_widgets))
@@ -753,18 +755,18 @@ class BlockEditorView(Gtk.Box):
         return overlay
 
     @staticmethod
-    def _build_widget(block, toc_text: str) -> Gtk.Widget | None:
+    def _build_widget(block, toc_text: str, ui_mode: str) -> Gtk.Widget | None:
         if isinstance(block, TextBlock):
             text = toc_text if block.kind == "toc" else block.text
             return _TextBlockView(text, block.kind)
         if isinstance(block, ThreeBlock):
-            return _ThreeBlockView(block.source)
+            return _ThreeBlockView(block.source, ui_mode)
         if isinstance(block, PythonImageBlock):
             return _PyImageBlockView(block)
         if isinstance(block, LatexBlock):
-            return _LatexBlockView(block.source)
+            return _LatexBlockView(block.source, ui_mode)
         if isinstance(block, MapBlock):
-            return _MapBlockView(block.source)
+            return _MapBlockView(block.source, ui_mode)
         return None
 
 
@@ -807,8 +809,9 @@ class _TextBlockView(Gtk.Frame):
 
 
 class _ThreeBlockView(Gtk.Frame):
-    def __init__(self, source: str) -> None:
+    def __init__(self, source: str, ui_mode: str) -> None:
         super().__init__()
+        self._ui_mode = ui_mode
         self.add_css_class("block")
         self.add_css_class("block-three")
 
@@ -828,7 +831,7 @@ class _ThreeBlockView(Gtk.Frame):
             self.set_child(label)
             return
 
-        source = render_three_html(source).replace(
+        source = render_three_html(source, ui_mode).replace(
             "__GTKV_THREE_SRC__", _three_module_uri()
         )
         self._html = source
@@ -843,6 +846,8 @@ class _ThreeBlockView(Gtk.Frame):
     def _build_view(self) -> None:
         if WebKit is None:
             return
+        palette = colors_for(self._ui_mode)
+        bg_red, bg_green, bg_blue, bg_alpha = palette.webkit_background_rgba
         view = WebKit.WebView()  # type: ignore[union-attr]
         settings = view.get_settings()
         if settings is not None:
@@ -857,10 +862,10 @@ class _ThreeBlockView(Gtk.Frame):
             if hasattr(settings, "set_allow_universal_access_from_file_urls"):
                 settings.set_allow_universal_access_from_file_urls(True)
         background = Gdk.RGBA()
-        background.red = 0.0
-        background.green = 0.0
-        background.blue = 0.0
-        background.alpha = 0.0
+        background.red = bg_red
+        background.green = bg_green
+        background.blue = bg_blue
+        background.alpha = bg_alpha
         if hasattr(view, "set_background_color"):
             view.set_background_color(background)
         view.set_vexpand(False)
@@ -909,8 +914,9 @@ class _PyImageBlockView(Gtk.Frame):
 
 
 class _LatexBlockView(Gtk.Frame):
-    def __init__(self, source: str) -> None:
+    def __init__(self, source: str, ui_mode: str) -> None:
         super().__init__()
+        self._ui_mode = ui_mode
         self.add_css_class("block")
         self.add_css_class("block-three")
 
@@ -940,18 +946,20 @@ class _LatexBlockView(Gtk.Frame):
                 settings.set_allow_file_access_from_file_urls(True)
             if hasattr(settings, "set_allow_universal_access_from_file_urls"):
                 settings.set_allow_universal_access_from_file_urls(True)
+        palette = colors_for(self._ui_mode)
+        bg_red, bg_green, bg_blue, bg_alpha = palette.webkit_background_rgba
         background = Gdk.RGBA()
-        background.red = 0.0
-        background.green = 0.0
-        background.blue = 0.0
-        background.alpha = 0.0
+        background.red = bg_red
+        background.green = bg_green
+        background.blue = bg_blue
+        background.alpha = bg_alpha
         if hasattr(view, "set_background_color"):
             view.set_background_color(background)
         view.set_vexpand(False)
         view.set_hexpand(True)
         view.set_size_request(-1, 80)
         view.set_valign(Gtk.Align.START)
-        self._html = render_latex_html(source)
+        self._html = render_latex_html(source, ui_mode)
         view.load_html(self._html, "file:///")
         if hasattr(view, "connect") and hasattr(view, "run_javascript"):
             view.connect("load-changed", self._on_latex_load_changed)
@@ -966,8 +974,9 @@ class _LatexBlockView(Gtk.Frame):
 
 
 class _MapBlockView(Gtk.Frame):
-    def __init__(self, source: str) -> None:
+    def __init__(self, source: str, ui_mode: str) -> None:
         super().__init__()
+        self._ui_mode = ui_mode
         self.add_css_class("block")
         self.add_css_class("block-map")
 
@@ -995,17 +1004,19 @@ class _MapBlockView(Gtk.Frame):
                 settings.set_enable_javascript(True)
             if hasattr(settings, "set_allow_universal_access_from_file_urls"):
                 settings.set_allow_universal_access_from_file_urls(True)
+        palette = colors_for(self._ui_mode)
+        bg_red, bg_green, bg_blue, bg_alpha = palette.webkit_background_rgba
         background = Gdk.RGBA()
-        background.red = 0.0
-        background.green = 0.0
-        background.blue = 0.0
-        background.alpha = 0.0
+        background.red = bg_red
+        background.green = bg_green
+        background.blue = bg_blue
+        background.alpha = bg_alpha
         if hasattr(view, "set_background_color"):
             view.set_background_color(background)
         view.set_vexpand(False)
         view.set_hexpand(True)
         view.set_size_request(-1, 320)
-        self._html = render_map_html(source)
+        self._html = render_map_html(source, ui_mode)
         view.load_html(self._html, "file:///")
         self.view = view
         self._box.append(view)

@@ -38,6 +38,7 @@ need to recreate Vim modes internally.
   - `export_html.py` for HTML export
   - `latex_template.py` for KaTeX HTML boilerplate
   - `map_template.py` for Leaflet map HTML boilerplate
+  - `design_constants.py` for UI color + font size tokens
   - `style.css` for UI styling
   - `three_template.py` for 3D block HTML boilerplate
   - `three.module.min.js` for bundled Three.js

@@ -2,6 +2,9 @@ from __future__ import annotations
 
 import json
 
+import config
+from design_constants import colors_for
+
 
 LEAFLET_CSS_CDN = "https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
 LEAFLET_JS_CDN = "https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
@@ -9,7 +12,8 @@ TILE_URL = "https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png"
 TILE_ATTR = "&copy; OpenStreetMap contributors &copy; CARTO"
 
 
-def render_map_html(source: str) -> str:
+def render_map_html(source: str, ui_mode: str | None = None) -> str:
+    palette = colors_for(ui_mode or config.get_ui_mode() or "dark")
     js_source = json.dumps(source)
     return (
         "<!doctype html>\n"
@@ -41,8 +45,8 @@ def render_map_html(source: str) -> str:
         "        el.style.padding = '12px';\n"
         "        el.style.margin = '12px';\n"
         "        el.style.borderRadius = '8px';\n"
-        "        el.style.background = 'rgba(24, 24, 24, 0.85)';\n"
-        "        el.style.color = '#d0d0d0';\n"
+        f"        el.style.background = '{palette.webkit_map_error_background}';\n"
+        f"        el.style.color = '{palette.webkit_map_error_text}';\n"
         "        document.body.appendChild(el);\n"
         "      }\n"
         "    </script>\n"

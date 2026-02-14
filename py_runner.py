@@ -9,6 +9,8 @@ import tempfile
 from dataclasses import dataclass
 from pathlib import Path
 
+import config
+from design_constants import colors_for
 
 @dataclass
 class RenderResult:
@@ -77,18 +79,19 @@ def _hash_render(source: str, python_path: str, render_format: str) -> str:
 def _build_runner_script(
     source_path: Path, output_path: Path, render_format: str
 ) -> str:
+    palette = colors_for(config.get_ui_mode() or "dark")
     return (
         "from types import SimpleNamespace\n"
         "import matplotlib as _mpl\n"
         "_mpl.rcParams.update({\n"
-        "    'text.color': '#d0d0d0',\n"
-        "    'axes.labelcolor': '#d0d0d0',\n"
-        "    'xtick.labelcolor': '#d0d0d0',\n"
-        "    'xtick.color': '#d0d0d0',\n"
-        "    'ytick.labelcolor': '#d0d0d0',\n"
-        "    'ytick.color': '#d0d0d0',\n"
-        "    'axes.edgecolor': '#d0d0d0',\n"
-        "    'axes.titlecolor': '#d0d0d0',\n"
+        f"    'text.color': '{palette.py_render_text}',\n"
+        f"    'axes.labelcolor': '{palette.py_render_text}',\n"
+        f"    'xtick.labelcolor': '{palette.py_render_text}',\n"
+        f"    'xtick.color': '{palette.py_render_text}',\n"
+        f"    'ytick.labelcolor': '{palette.py_render_text}',\n"
+        f"    'ytick.color': '{palette.py_render_text}',\n"
+        f"    'axes.edgecolor': '{palette.py_render_text}',\n"
+        f"    'axes.titlecolor': '{palette.py_render_text}',\n"
         "    'axes.facecolor': 'none',\n"
         "    'figure.facecolor': 'none',\n"
         "    'savefig.transparent': True,\n"
@@ -103,13 +106,15 @@ def _build_runner_script(
 
 
 def _replace_black_with_white_svg(svg_text: str) -> str:
+    palette = colors_for(config.get_ui_mode() or "dark")
+    replacement_rgb = palette.py_render_replacement_rgb
     updated = svg_text
     replacements = {
-        "#000000": "#d0d0d0",
-        "#000": "#d0d0d0",
-        "rgb(0,0,0)": "rgb(208,208,208)",
-        "rgb(0, 0, 0)": "rgb(208,208,208)",
-        "black": "#d0d0d0",
+        "#000000": palette.py_render_replacement,
+        "#000": palette.py_render_replacement,
+        "rgb(0,0,0)": replacement_rgb,
+        "rgb(0, 0, 0)": replacement_rgb,
+        "black": palette.py_render_replacement,
     }
     for before, after in replacements.items():
         updated = updated.replace(before, after)
@@ -126,14 +131,19 @@ def _replace_black_with_white_svg(svg_text: str) -> str:
         r"(stroke\s*:\s*)(rgb\(0\s*,\s*0\s*,\s*0\)|rgb\(0%\s*,\s*0%\s*,\s*0%\)|rgba\(0\s*,\s*0\s*,\s*0\s*,\s*1\))",
     ]
     for pattern in patterns:
-        updated = re.sub(pattern, r"\1#d0d0d0", updated, flags=re.IGNORECASE)
+        updated = re.sub(
+            pattern,
+            rf"\1{palette.py_render_replacement}",
+            updated,
+            flags=re.IGNORECASE,
+        )
 
     def _force_text_fill(match: re.Match) -> str:
         prefix = match.group(1)
         attrs = match.group(2) or ""
         if "style=" in attrs:
             return f"{prefix}{_append_fill_style(attrs)}"
-        return f'{prefix}{attrs} style="fill:#d0d0d0"'
+        return f'{prefix}{attrs} style="fill:{palette.py_render_replacement}"'
 
     updated = re.sub(
         r"(<g\s+id=\"text_\d+\")([^>]*)",
@@ -145,12 +155,16 @@ def _replace_black_with_white_svg(svg_text: str) -> str:
 
 
 def _append_fill_style(attrs: str) -> str:
+    palette = colors_for(config.get_ui_mode() or "dark")
     match = re.search(r"style=\"([^\"]*)\"", attrs)
     if not match:
-        return f'{attrs} style="fill:#ffffff"'
+        return f'{attrs} style="fill:{palette.py_render_fallback_fill}"'
     style = match.group(1)
     if "fill:" in style:
-        updated_style = re.sub(r"fill\s*:[^;]+", "fill:#d0d0d0", style)
+        updated_style = re.sub(
+            r"fill\s*:[^;]+", f"fill:{palette.py_render_replacement}", style
+        )
     else:
-        updated_style = f"{style};fill:#d0d0d0"
+        updated_style = f"{style};fill:{palette.py_render_replacement}"
     return attrs.replace(match.group(0), f'style="{updated_style}"')
+

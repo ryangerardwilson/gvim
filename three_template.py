@@ -2,16 +2,22 @@ from __future__ import annotations
 
 import json
 
+import config
+from design_constants import colors_for
 
-def default_three_template() -> str:
+
+def default_three_template(ui_mode: str | None = None) -> str:
+    palette = colors_for(ui_mode or config.get_ui_mode() or "dark")
+    material_color = f"0x{palette.three_material:06x}"
+    light_color = f"0x{palette.three_light:06x}"
     return (
         "// GTKV Three.js block (module JS)\n"
         "// You can use scene, camera, renderer, canvas, and THREE.\n"
         "const geometry = new THREE.BoxGeometry(1, 1, 1);\n"
-        "const material = new THREE.MeshStandardMaterial({ color: 0xaaaaaa, metalness: 0.3, roughness: 0.4 });\n"
+        f"const material = new THREE.MeshStandardMaterial({{ color: {material_color}, metalness: 0.3, roughness: 0.4 }});\n"
         "const cube = new THREE.Mesh(geometry, material);\n"
         "scene.add(cube);\n"
-        "const light = new THREE.DirectionalLight(0xffffff, 1);\n"
+        f"const light = new THREE.DirectionalLight({light_color}, 1);\n"
         "light.position.set(2, 3, 4);\n"
         "scene.add(light);\n"
         "camera.position.z = 3;\n"
@@ -25,7 +31,10 @@ def default_three_template() -> str:
     )
 
 
-def render_three_html(source: str) -> str:
+def render_three_html(source: str, ui_mode: str | None = None) -> str:
+    palette = colors_for(ui_mode or config.get_ui_mode() or "dark")
+    text_color = palette.webkit_three_text
+    clear_color = f"0x{palette.three_clear:06x}"
     src = "__GTKV_THREE_SRC__"
     js_source = json.dumps(source)
     return (
@@ -33,7 +42,7 @@ def render_three_html(source: str) -> str:
         "<html>\n"
         "  <head>\n"
         '    <meta charset="utf-8" />\n'
-        "    <style>html, body { margin: 0; background: transparent; color: #ddd; } canvas { display: block; }</style>\n"
+        f"    <style>html, body {{ margin: 0; background: transparent; color: {text_color}; }} canvas {{ display: block; }}</style>\n"
         "  </head>\n"
         "  <body>\n"
         '    <canvas id="gtkv-canvas"></canvas>\n'
@@ -53,7 +62,7 @@ def render_three_html(source: str) -> str:
         "        const scene = new THREE.Scene();\n"
         "        const camera = new THREE.PerspectiveCamera(60, innerWidth/innerHeight, 0.1, 1000);\n"
         "        const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true, canvas });\n"
-        "        renderer.setClearColor(0x000000, 0);\n"
+        f"        renderer.setClearColor({clear_color}, 0);\n"
         "        renderer.setPixelRatio(devicePixelRatio || 1);\n"
         "        const resize = () => {\n"
         "          renderer.setSize(innerWidth, innerHeight);\n"

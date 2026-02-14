@@ -5,6 +5,8 @@ from __future__ import annotations
 import copy
 from pathlib import Path
 
+import config
+from design_constants import colors_for
 from app_state import AppState
 from block_model import (
     Block,
@@ -97,6 +99,7 @@ def insert_map_block(state: AppState) -> bool:
     if state.document is None or state.view is None:
         return False
     insert_at = state.view.get_selected_index()
+    palette = colors_for(config.get_ui_mode() or "dark")
     template = (
         "// Leaflet globals: L, map, tileLayer\n"
         "const points = [\n"
@@ -107,8 +110,8 @@ def insert_map_block(state: AppState) -> bool:
         "points.forEach(([lat, lon]) => {\n"
         "  L.circleMarker([lat, lon], {\n"
         "    radius: 5,\n"
-        "    color: '#d0d0d0',\n"
-        "    fillColor: '#d0d0d0',\n"
+        f"    color: '{palette.map_marker}',\n"
+        f"    fillColor: '{palette.map_marker}',\n"
         "    fillOpacity: 0.9,\n"
         "  }).addTo(map);\n"
         "});\n"

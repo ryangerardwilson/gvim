@@ -6,6 +6,7 @@ import base64
 from pathlib import Path
 
 import py_runner
+from design_constants import colors_for, font
 from block_model import (
     BlockDocument,
     LatexBlock,
@@ -26,13 +27,19 @@ LEAFLET_TILE_ATTR = "&copy; OpenStreetMap contributors &copy; CARTO"
 
 
 def export_document(
-    document: BlockDocument, output_path: Path, python_path: str | None
+    document: BlockDocument,
+    output_path: Path,
+    python_path: str | None,
+    ui_mode: str = "dark",
 ) -> None:
-    html = _build_html(document, python_path)
+    html = _build_html(document, python_path, ui_mode)
     output_path.write_text(html, encoding="utf-8")
 
 
-def _build_html(document: BlockDocument, python_path: str | None) -> str:
+def _build_html(
+    document: BlockDocument, python_path: str | None, ui_mode: str
+) -> str:
+    palette = colors_for(ui_mode)
     blocks_html = []
     latex_sources = []
     map_sources = []
@@ -72,12 +79,12 @@ def _build_html(document: BlockDocument, python_path: str | None) -> str:
         f'    <link rel="stylesheet" href="{LEAFLET_CSS_CDN}" />\n'
         "    <style>\n"
         "      :root {\n"
-        "        color-scheme: dark;\n"
+        f"        color-scheme: {ui_mode};\n"
         "      }\n"
         "      body {\n"
         "        margin: 0;\n"
-        "        background: #0a0a0a;\n"
-        "        color: #d0d0d0;\n"
+        f"        background: {palette.export_body_background};\n"
+        f"        color: {palette.export_body_text};\n"
         "        font-family: 'JetBrains Mono', 'Fira Code', 'SF Mono', monospace;\n"
         "      }\n"
         "      main {\n"
@@ -89,16 +96,16 @@ def _build_html(document: BlockDocument, python_path: str | None) -> str:
         "        padding: 16px 20px;\n"
         "        margin: 0;\n"
         "      }\n"
-        "      .block-title { font-size: 28px; font-weight: 600; color: #e6e6e6; }\n"
-        "      .block-h1 { font-size: 20px; font-weight: 600; color: #dedede; }\n"
-        "      .block-h2 { font-size: 16px; font-weight: 600; color: #d9d9d9; }\n"
-        "      .block-h3 { font-size: 14px; font-weight: 600; color: #d4d4d4; }\n"
-        "      .block-body { font-size: 13px; line-height: 1.6; color: #d0d0d0; white-space: pre-wrap; }\n"
-        "      .block-toc { font-size: 12px; color: #bfbfbf; white-space: pre-wrap; }\n"
+        f"      .block-title {{ font-size: {font.export_title}; font-weight: 600; color: {palette.export_title}; }}\n"
+        f"      .block-h1 {{ font-size: {font.export_h1}; font-weight: 600; color: {palette.export_h1}; }}\n"
+        f"      .block-h2 {{ font-size: {font.export_h2}; font-weight: 600; color: {palette.export_h2}; }}\n"
+        f"      .block-h3 {{ font-size: {font.export_h3}; font-weight: 600; color: {palette.export_h3}; }}\n"
+        f"      .block-body {{ font-size: {font.export_body}; line-height: 1.6; color: {palette.export_body}; white-space: pre-wrap; }}\n"
+        f"      .block-toc {{ font-size: {font.export_toc}; color: {palette.export_toc}; white-space: pre-wrap; }}\n"
         "      .block-pyimage { text-align: center; }\n"
         "      .block-pyimage img { max-width: 100%; height: auto; display: inline-block; }\n"
         "      .block-three canvas { width: 100%; height: 300px; display: block; }\n"
-        "      .block-latex { font-size: 20px; color: #d0d0d0; }\n"
+        f"      .block-latex {{ font-size: {font.export_latex}; color: {palette.export_latex}; }}\n"
         "      .block-map { height: 320px; }\n"
         "      .block-map > div { height: 100%; }\n"
         "    </style>\n"

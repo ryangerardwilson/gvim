@@ -22,6 +22,7 @@ import document_io
 import editor
 import py_runner
 from export_html import export_document
+from design_constants import colors_for, font
 from _version import __version__
 from app_state import AppState
 from block_model import (
@@ -53,6 +54,7 @@ class Orchestrator:
     def __init__(self) -> None:
         self._state = AppState()
         self._python_path: str | None = None
+        self._ui_mode: str | None = None
         self._leader_active = False
         self._leader_buffer = ""
         self._leader_start = 0.0
@@ -86,6 +88,12 @@ class Orchestrator:
             if self._python_path:
                 config.set_python_path(self._python_path)
 
+        self._ui_mode = config.get_ui_mode()
+        if not self._ui_mode:
+            self._ui_mode = _prompt_ui_mode_cli()
+            if self._ui_mode:
+                config.set_ui_mode(self._ui_mode)
+
         if document_path.exists():
             self._state.document = document_io.load(document_path)
         else:
@@ -96,7 +104,7 @@ class Orchestrator:
             self._state.document.set_path(document_path)
 
         app = BlockApp(self)
-        _load_css(Path(__file__).with_name("style.css"))
+        _load_css(Path(__file__).with_name("style.css"), self._ui_mode or "dark")
         return app.run(gtk_args)
 
     def configure_window(self, window: Gtk.ApplicationWindow) -> None:
@@ -108,7 +116,7 @@ class Orchestrator:
             document = BlockDocument([])
             self._state.document = document
 
-        view: BlockEditorView = BlockEditorView()
+        view: BlockEditorView = BlockEditorView(self._ui_mode or "dark")
         view.set_document(document)
         self._state.view = view
         self._render_python_images_on_start()
@@ -432,7 +440,7 @@ class Orchestrator:
             print("No document path set; cannot export", file=sys.stderr)
             return False
         output_path = document.path.with_suffix(".html")
-        export_document(document, output_path, self._python_path)
+        export_document(document, output_path, self._python_path, self._ui_mode or "dark")
         return True
 
     def _render_python_image(self, index: int) -> None:
@@ -478,9 +486,61 @@ class Orchestrator:
                 self._render_python_image(index)
 
 
-def _load_css(css_path: Path) -> None:
+def _load_css(css_path: Path, ui_mode: str) -> None:
     if not css_path.exists():
         return
+
+    palette = colors_for(ui_mode)
+    variables = ":root {\n"
+    variables += f"  --block-text-color: {palette.block_text};\n"
+    variables += f"  --block-text-size: {font.block_text};\n"
+    variables += f"  --block-title-color: {palette.block_title};\n"
+    variables += f"  --block-title-size: {font.block_title};\n"
+    variables += f"  --block-h1-color: {palette.block_h1};\n"
+    variables += f"  --block-h1-size: {font.block_h1};\n"
+    variables += f"  --block-h2-color: {palette.block_h2};\n"
+    variables += f"  --block-h2-size: {font.block_h2};\n"
+    variables += f"  --block-h3-color: {palette.block_h3};\n"
+    variables += f"  --block-h3-size: {font.block_h3};\n"
+    variables += f"  --block-toc-color: {palette.block_toc};\n"
+    variables += f"  --block-toc-size: {font.block_toc};\n"
+    variables += f"  --block-image-label-color: {palette.block_image_label};\n"
+    variables += f"  --block-selected-shadow: {palette.block_selected_shadow};\n"
+    variables += f"  --block-selected-background: {palette.block_selected_background};\n"
+    variables += f"  --help-panel-background: {palette.help_panel_background};\n"
+    variables += f"  --help-panel-border: {palette.help_panel_border};\n"
+    variables += f"  --help-title-color: {palette.help_title};\n"
+    variables += f"  --help-title-size: {font.help_title};\n"
+    variables += f"  --help-body-color: {palette.help_body};\n"
+    variables += f"  --help-body-size: {font.help_body};\n"
+    variables += f"  --toc-panel-background: {palette.toc_panel_background};\n"
+    variables += f"  --toc-panel-border: {palette.toc_panel_border};\n"
+    variables += f"  --toc-panel-shadow: {palette.toc_panel_shadow};\n"
+    variables += f"  --toc-title-color: {palette.toc_title};\n"
+    variables += f"  --toc-title-size: {font.toc_title};\n"
+    variables += f"  --toc-hint-color: {palette.toc_hint};\n"
+    variables += f"  --toc-hint-size: {font.toc_hint};\n"
+    variables += f"  --toc-row-selected-background: {palette.toc_row_selected_background};\n"
+    variables += f"  --toc-row-selected-border: {palette.toc_row_selected_border};\n"
+    variables += f"  --toc-row-label-color: {palette.toc_row_label};\n"
+    variables += f"  --toc-row-size: {font.toc_row};\n"
+    variables += f"  --toc-empty-color: {palette.toc_empty};\n"
+    variables += f"  --toc-empty-size: {font.toc_empty};\n"
+    variables += f"  --status-background: {palette.status_background};\n"
+    variables += f"  --status-border: {palette.status_border};\n"
+    variables += f"  --status-text-color: {palette.status_text};\n"
+    variables += f"  --status-size: {font.status};\n"
+    variables += f"  --status-success-color: {palette.status_success};\n"
+    variables += f"  --status-error-color: {palette.status_error};\n"
+    variables += "}\n"
+
+    provider = Gtk.CssProvider()
+    provider.load_from_data(variables.encode("utf-8"))
+    display = Gdk.Display.get_default()
+    if display is not None:
+        Gtk.StyleContext.add_provider_for_display(
+            display, provider, Gtk.STYLE_PROVIDER_PRIORITY_APPLICATION
+        )
 
     provider = Gtk.CssProvider()
     provider.load_from_path(str(css_path))
@@ -505,6 +565,18 @@ def _prompt_python_path_cli() -> str | None:
     if not os.access(text, os.X_OK):
         return None
     return text
+
+
+def _prompt_ui_mode_cli() -> str | None:
+    try:
+        text = input("UI mode (dark/light, leave blank for dark): ").strip().lower()
+    except EOFError:
+        return None
+    if not text:
+        return "dark"
+    if text in {"dark", "light"}:
+        return text
+    return None
 
 
 def parse_args(
@@ -590,5 +662,6 @@ def _run_export(output_path: str, input_path: str | None) -> int:
         return 1
     document = document_io.load(doc_path)
     python_path = config.get_python_path()
-    export_document(document, Path(output_path).expanduser(), python_path)
+    ui_mode = config.get_ui_mode() or "dark"
+    export_document(document, Path(output_path).expanduser(), python_path, ui_mode)
     return 0
