@@ -6,11 +6,38 @@ import config
 from design_constants import colors_for
 
 
-def default_three_template(ui_mode: str | None = None) -> str:
+def default_three_template(ui_mode: str | None = None, include_guidance: bool = True) -> str:
     palette = colors_for(ui_mode or config.get_ui_mode() or "dark")
     material_color = f"0x{palette.three_material:06x}"
     light_color = f"0x{palette.three_light:06x}"
-    return (
+    guidance = (
+        "/*\n"
+        "Theme note: colors are set globally by your UI mode (dark/light).\n"
+        "Override locally by setting explicit colors in this block.\n"
+        "Defaults applied: material color, light color, and transparent clear color.\n"
+        "\n"
+        "Example GTKV Three.js block (module JS). You can use scene, camera,\n"
+        "renderer, canvas, and THREE.\n"
+        "```\n"
+        "const geometry = new THREE.BoxGeometry(1, 1, 1);\n"
+        f"const material = new THREE.MeshStandardMaterial({{ color: {material_color}, metalness: 0.3, roughness: 0.4 }});\n"
+        "const cube = new THREE.Mesh(geometry, material);\n"
+        "scene.add(cube);\n"
+        f"const light = new THREE.DirectionalLight({light_color}, 1);\n"
+        "light.position.set(2, 3, 4);\n"
+        "scene.add(light);\n"
+        "camera.position.z = 3;\n"
+        "function animate() {\n"
+        "  requestAnimationFrame(animate);\n"
+        "  cube.rotation.x += 0.01;\n"
+        "  cube.rotation.y += 0.015;\n"
+        "  renderer.render(scene, camera);\n"
+        "}\n"
+        "animate();\n"
+        "```\n"
+        "*/\n\n"
+    )
+    body = (
         "// GTKV Three.js block (module JS)\n"
         "// You can use scene, camera, renderer, canvas, and THREE.\n"
         "const geometry = new THREE.BoxGeometry(1, 1, 1);\n"
@@ -29,6 +56,9 @@ def default_three_template(ui_mode: str | None = None) -> str:
         "}\n"
         "animate();\n"
     )
+    if include_guidance:
+        return guidance
+    return body
 
 
 def render_three_html(source: str, ui_mode: str | None = None) -> str:

@@ -251,7 +251,11 @@ def sample_document() -> BlockDocument:
                 "Use them for real-time 3D scenes.",
                 kind="body",
             ),
-            ThreeBlock(default_three_template()),
+            ThreeBlock(
+                default_three_template(
+                    config.get_ui_mode() or "dark", include_guidance=False
+                )
+            ),
             TextBlock(
                 "LaTeX blocks",
                 kind="h1",

@@ -60,7 +60,14 @@ def insert_three_block(state: AppState) -> bool:
     if state.document is None or state.view is None:
         return False
     insert_at = state.view.get_selected_index()
-    state.document.insert_block_after(insert_at, ThreeBlock(default_three_template()))
+    state.document.insert_block_after(
+        insert_at,
+        ThreeBlock(
+            default_three_template(
+                ui_mode=config.get_ui_mode() or "dark", include_guidance=True
+            )
+        ),
+    )
     state.view.set_document(state.document)
     state.view.move_selection(1)
     return True
@@ -70,12 +77,7 @@ def insert_python_image_block(state: AppState) -> bool:
     if state.document is None or state.view is None:
         return False
     insert_at = state.view.get_selected_index()
-    template = (
-        "import matplotlib.pyplot as plt\n\n"
-        "fig, ax = plt.subplots()\n"
-        "ax.plot([0, 1, 2], [0, 1, 0.5])\n"
-        'fig.savefig(__gtkv__.renderer, format="svg", dpi=200, transparent=True, bbox_inches="tight")\n'
-    )
+    template = _PY_GUIDANCE
     state.document.insert_block_after(
         insert_at, PythonImageBlock(template, format="svg")
     )
@@ -118,6 +120,7 @@ def insert_map_block(state: AppState) -> bool:
         "const bounds = L.latLngBounds(points);\n"
         "map.fitBounds(bounds.pad(0.2));\n"
     )
+    template = _prepend_guidance("map", template)
     state.document.insert_block_after(insert_at, MapBlock(template))
     state.view.set_document(state.document)
     state.view.move_selection(1)
@@ -219,13 +222,13 @@ def get_selected_edit_payload(
             return None
         content = block.text
     elif isinstance(block, ThreeBlock):
-        content = block.source
+        content = _prepend_guidance("three", block.source)
     elif isinstance(block, PythonImageBlock):
-        content = block.source
+        content = _prepend_guidance("pyimage", block.source)
     elif isinstance(block, LatexBlock):
         content = block.source
     elif isinstance(block, MapBlock):
-        content = block.source
+        content = _prepend_guidance("map", block.source)
     else:
         return None
 
@@ -248,3 +251,67 @@ def update_block_from_editor(
     else:
         state.document.set_text_block(index, updated_text)
     return True
+
+
+_THREE_GUIDANCE = (
+    "/*\n"
+    "Theme note: colors are set globally by your UI mode (dark/light).\n"
+    "Override locally by setting explicit colors in this block.\n"
+    "Defaults applied: material color, light color, and transparent clear color.\n"
+    "\n"
+    "Example GTKV Three.js block (module JS). You can use scene, camera,\n"
+    "renderer, canvas, and THREE.\n"
+    "```\n"
+    "const geometry = new THREE.BoxGeometry(1, 1, 1);\n"
+    "const material = new THREE.MeshStandardMaterial({ color: 0xaaaaaa, metalness: 0.3, roughness: 0.4 });\n"
+    "const cube = new THREE.Mesh(geometry, material);\n"
+    "scene.add(cube);\n"
+    "const light = new THREE.DirectionalLight(0xffffff, 1);\n"
+    "light.position.set(2, 3, 4);\n"
+    "scene.add(light);\n"
+    "camera.position.z = 3;\n"
+    "function animate() {\n"
+    "  requestAnimationFrame(animate);\n"
+    "  cube.rotation.x += 0.01;\n"
+    "  cube.rotation.y += 0.015;\n"
+    "  renderer.render(scene, camera);\n"
+    "}\n"
+    "animate();\n"
+    "```\n"
+    "*/\n\n"
+)
+
+_MAP_GUIDANCE = (
+    "/*\n"
+    "Theme note: colors are set globally by your UI mode (dark/light).\n"
+    "Override locally by setting explicit colors in this block.\n"
+    "Defaults applied: basemap tiles and marker stroke/fill colors.\n"
+    "*/\n\n"
+)
+
+_PY_GUIDANCE = (
+    "\"\"\"\n"
+    "Theme note: colors are set globally by your UI mode (dark/light).\n"
+    "Override locally by setting explicit colors in this block.\n"
+    "Defaults applied: matplotlib text/ticks/axes colors and transparent figure.\n"
+    "\n"
+    "import matplotlib.pyplot as plt\n"
+    "\n"
+    "fig, ax = plt.subplots()\n"
+    "ax.plot([0, 1, 2], [0, 1, 0.5])\n"
+    "ax.set_title(\"Sample plot\")\n"
+    "fig.savefig(__gtkv__.renderer, format=\"svg\", dpi=200, transparent=True, bbox_inches=\"tight\")\n"
+    "\"\"\"\n\n"
+)
+
+
+def _prepend_guidance(kind: str, content: str) -> str:
+    if kind == "pyimage":
+        guidance = _PY_GUIDANCE
+    elif kind == "map":
+        guidance = _MAP_GUIDANCE
+    else:
+        guidance = _THREE_GUIDANCE
+    if content.lstrip().startswith(guidance.strip()):
+        return content
+    return f"{guidance}{content}"
