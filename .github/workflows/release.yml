@@ -60,12 +60,11 @@ jobs:
               "$PYBIN" -m pip install -U pip
               echo "__version__ = \"${VERSION}\"" > _version.py
               mkdir -p dist/gtkv
-              cp -a main.py orchestrator.py actions.py app_state.py block_model.py \
-                block_registry.py block_view.py config.py document_io.py editor.py \
-                py_runner.py persistence_text.py export_html.py style.css \
-                three_template.py three.module.min.js latex_template.py map_template.py \
-                katex.min.js katex.min.css fonts _version.py AGENTS.md README.md \
-                completions_gtkv.bash dist/gtkv/
+              rsync -av --exclude '.git' --exclude '.github' --exclude 'dist' \
+                --include '/*.py' --exclude '*' /work/ dist/gtkv/
+              cp -a style.css three_template.py three.module.min.js latex_template.py \
+                map_template.py katex.min.js katex.min.css fonts _version.py \
+                AGENTS.md README.md completions_gtkv.bash dist/gtkv/
               tar -C dist -czf gtkv-linux-x64.tar.gz gtkv
 
             '
