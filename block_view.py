@@ -371,6 +371,17 @@ class BlockEditorView(Gtk.Box):
         self.set_document(document)
         self.set_selected_index(selected, scroll=False)
         self.set_scroll_position(scroll)
+        GLib.idle_add(self._restore_scroll_position, scroll)
+        GLib.timeout_add(120, self._restore_scroll_position, scroll)
+
+    def _restore_scroll_position(self, scroll: float) -> bool:
+        self.set_scroll_position(scroll)
+        if self._block_widgets and self._selected_index == len(self._block_widgets) - 1:
+            vadjustment = self._scroller.get_vadjustment()
+            if vadjustment is not None:
+                bottom = vadjustment.get_upper() - vadjustment.get_page_size()
+                vadjustment.set_value(max(vadjustment.get_value(), bottom))
+        return False
 
     def open_toc_drill(self, document: BlockDocument) -> None:
         if self._toc_visible:
@@ -902,7 +913,7 @@ class _ThreeBlockView(Gtk.Frame):
             return
         palette = colors_for(self._ui_mode)
         bg_red, bg_green, bg_blue, bg_alpha = palette.webkit_background_rgba
-        view = WebKit.WebView()  # type: ignore[union-attr]
+        view = WebKit.WebView()  # type: ignore[union-attr, attr-defined]
         settings = view.get_settings()
         if settings is not None:
             if hasattr(settings, "set_enable_javascript"):
@@ -1075,9 +1086,13 @@ class _MapBlockView(Gtk.Frame):
 
     def reload_html(self) -> None:
         if self.view_dark is not None and self._html_dark is not None:
-            self.view_dark.load_html(self._html_dark, "file:///")
+            self.view_dark.load_html(  # type: ignore[union-attr]
+                self._html_dark, "file:///"
+            )
         if self.view_light is not None and self._html_light is not None:
-            self.view_light.load_html(self._html_light, "file:///")
+            self.view_light.load_html(  # type: ignore[union-attr]
+                self._html_light, "file:///"
+            )
 
     def _build_map_view(self, html: str) -> Gtk.Widget:
         view = WebKit.WebView()  # type: ignore[union-attr]
