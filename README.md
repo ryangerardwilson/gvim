@@ -69,6 +69,7 @@ python main.py
 - `,j` — jump to the last block.
 - `,k` — jump to the first block.
 - `,toc` — open the outline drill.
+- `,m` — toggle light/dark mode.
 - `Ctrl+j/k` — move the selected block up/down.
 - `dd` — cut the selected block.
 - `yy` — yank the selected block.
@@ -106,6 +107,7 @@ Leader is `,` followed by a short token. Block commands are prefixed with `b`:
 - `,bltx` LaTeX block
 - `,bmap` map block
 - `,toc` open the outline drill
+- `,m` toggle light/dark mode
 
 ### Bash completion
 

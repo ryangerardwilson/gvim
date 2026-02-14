@@ -349,6 +349,10 @@ class Orchestrator:
                 self._state.view.set_document(self._state.document)
             self._state.view.open_toc_drill(self._state.document)
             return True
+        if self._leader_buffer == "m":
+            self._leader_active = False
+            self._toggle_ui_mode()
+            return True
         return True
 
     def _quit(self) -> None:
@@ -361,6 +365,16 @@ class Orchestrator:
     def _show_status(self, message: str, kind: str = "info") -> None:
         if self._state.view is not None:
             self._state.view.show_status(message, kind)
+
+    def _toggle_ui_mode(self) -> None:
+        current = (self._ui_mode or "dark").lower()
+        next_mode = "light" if current == "dark" else "dark"
+        self._ui_mode = next_mode
+        config.set_ui_mode(next_mode)
+        _load_css(Path(__file__).with_name("style.css"), next_mode)
+        if self._state.document is not None and self._state.view is not None:
+            self._state.view.set_ui_mode(next_mode, self._state.document)
+        self._show_status(f"Theme: {next_mode}", "success")
 
     def _open_selected_block_editor(self) -> bool:
         if self._state.active_editor is not None:

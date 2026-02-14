@@ -320,6 +320,16 @@ class BlockEditorView(Gtk.Box):
     def toc_drill_active(self) -> bool:
         return self._toc_visible
 
+    def set_ui_mode(self, ui_mode: str, document: BlockDocument) -> None:
+        if ui_mode == self._ui_mode:
+            return
+        scroll = self.get_scroll_position()
+        selected = self._selected_index
+        self._ui_mode = ui_mode
+        self.set_document(document)
+        self.set_selected_index(selected, scroll=False)
+        self.set_scroll_position(scroll)
+
     def open_toc_drill(self, document: BlockDocument) -> None:
         if self._toc_visible:
             return
@@ -722,6 +732,7 @@ class BlockEditorView(Gtk.Box):
             "  ,j         last block",
             "  ,k         first block",
             "  ,toc       outline drill",
+            "  ,m         toggle theme",
             "  dd         cut selected block",
             "  yy         yank selected block",
             "  p          paste clipboard block",
