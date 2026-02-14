@@ -334,10 +334,10 @@ class Orchestrator:
         if self._leader_buffer == "bn":
             self._leader_active = False
             return actions.insert_text_block(self._state, kind="body")
-        if self._leader_buffer == "btoc":
+        if self._leader_buffer == "bi":
             self._leader_active = False
             return actions.insert_toc_block(self._state)
-        if self._leader_buffer == "toc":
+        if self._leader_buffer == "i":
             self._leader_active = False
             if self._state.document is None or self._state.view is None:
                 return False
@@ -635,7 +635,10 @@ def parse_args(
         "--export",
         nargs="?",
         const="__default__",
-        help="Export .docv to HTML (optional output path)",
+        help=(
+            "Export .docv to HTML (optional output path; without input, "
+            "export all .docv recursively from cwd)"
+        ),
     )
     parser.add_argument(
         "-q", action="store_true", dest="demo", help="Quickstart content"
@@ -701,8 +704,38 @@ def _get_version() -> str:
     return __version__
 
 
+def _find_project_root() -> Path | None:
+    current = Path.cwd()
+    for candidate in [current, *current.parents]:
+        if (candidate / "__init__.docv").exists():
+            return candidate
+    return None
+
+
+def _run_export_all() -> int:
+    root = _find_project_root()
+    if root is None:
+        print(
+            "Export requires __init__.docv in the project root",
+            file=sys.stderr,
+        )
+        return 1
+    doc_paths = sorted(root.rglob("*.docv"))
+    if not doc_paths:
+        print(f"No .docv files found under {root}", file=sys.stderr)
+        return 1
+    python_path = config.get_python_path()
+    ui_mode = config.get_ui_mode() or "dark"
+    for doc_path in doc_paths:
+        document = document_io.load(doc_path)
+        export_document(document, doc_path.with_suffix(".html"), python_path, ui_mode)
+    return 0
+
+
 def _run_export(output_path: str, input_path: str | None) -> int:
     if not input_path:
+        if output_path == "__default__":
+            return _run_export_all()
         print("Export requires a .docv input path", file=sys.stderr)
         return 1
     if output_path == "__default__" or not output_path:

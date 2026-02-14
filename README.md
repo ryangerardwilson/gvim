@@ -60,7 +60,7 @@ python main.py
 - `,bn` — insert a normal text block.
 - `,bht` — insert a title block.
 - `,bh1` / `,bh2` / `,bh3` — insert heading blocks.
-- `,btoc` — insert a table of contents block.
+- `,bi` — insert an index block.
 - `,bjs` — insert a 3D block and edit its Three.js module JS in Vim.
 - `,bpy` — insert a Python render block (SVG output).
 - `,bltx` — insert a LaTeX block rendered with KaTeX.
@@ -68,7 +68,7 @@ python main.py
 - `j/k` — move between blocks.
 - `,j` — jump to the last block.
 - `,k` — jump to the first block.
-- `,toc` — open the outline drill.
+- `,i` — open the index drill.
 - `,m` — toggle light/dark mode.
 - `Ctrl+j/k` — move the selected block up/down.
 - `dd` — cut the selected block.
@@ -84,6 +84,7 @@ python main.py
 - `-v` — print installed version.
 - `-u` — upgrade to the latest release.
 - `-e [output.html] doc.docv` — export to HTML (defaults to same basename).
+- `-e` — export all `.docv` recursively from project root (requires `__init__.docv`).
 - `-q` — quickstart a new document with demo content.
 - `-h` — show CLI help.
 
@@ -100,12 +101,12 @@ Leader is `,` followed by a short token. Block commands are prefixed with `b`:
 - `,bn` normal text
 - `,bht` title
 - `,bh1` / `,bh2` / `,bh3` headings
-- `,btoc` table of contents
+- `,bi` index
 - `,bjs` Three.js block
 - `,bpy` Python render block
 - `,bltx` LaTeX block
 - `,bmap` map block
-- `,toc` open the outline drill
+- `,i` open the index drill
 - `,m` toggle light/dark mode
 
 ### Bash completion
@@ -249,6 +250,12 @@ Export a document to a self-contained HTML page (toggleable light/dark):
 
 ```bash
 gtkv -e [output.html] doc.docv
+```
+
+Export all `.docv` documents under a project root (requires `__init__.docv` in that root):
+
+```bash
+gtkv -e
 ```
 
 - Three.js and KaTeX load from CDN to keep the HTML lean.
