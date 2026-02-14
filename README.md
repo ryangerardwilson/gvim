@@ -66,13 +66,15 @@ python main.py
 - `,bltx` — insert a LaTeX block rendered with KaTeX.
 - `,bmap` — insert a map block (Leaflet JS).
 - `j/k` — move between blocks.
-- `,j` — jump to the first block.
-- `,k` — jump to the last block.
+- `,j` — jump to the last block.
+- `,k` — jump to the first block.
+- `,toc` — open the outline drill.
 - `Ctrl+j/k` — move the selected block up/down.
-- `dd` — delete the selected block.
+- `dd` — cut the selected block.
 - `yy` — yank the selected block.
 - `p` — paste the clipboard block after the selection.
 - `Enter` — open the selected text or code block in Vim.
+- `Enter` on a TOC block — open the outline drill.
 - Exit Vim — refreshes the block content in GTK.
 - `Ctrl+S` — save the current document.
 - `Ctrl+E` — export HTML alongside the document.
@@ -103,6 +105,7 @@ Leader is `,` followed by a short token. Block commands are prefixed with `b`:
 - `,bpy` Python render block
 - `,bltx` LaTeX block
 - `,bmap` map block
+- `,toc` open the outline drill
 
 ### Bash completion
 

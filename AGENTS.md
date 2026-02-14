@@ -71,7 +71,7 @@ GTK app.
 Defines block types and the document structure.
 
 ### `block_view.py`
-Renders the document as GTK blocks and tracks selection/navigation.
+Renders the document as GTK blocks, overlays, and tracks selection/navigation.
 
 ### `persistence_text.py`
 Text-based `.docv` persistence (git-friendly).

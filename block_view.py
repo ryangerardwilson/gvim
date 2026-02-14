@@ -283,19 +283,10 @@ class BlockEditorView(Gtk.Box):
         self._help_visible = not self._help_visible
         if self._help_visible:
             self.clear_selection()
-            self._help_scroll = (
-                self._scroller.get_vadjustment().get_value()
-                if self._scroller.get_vadjustment()
-                else 0.0
-            )
-            self._help_selected = self._selected_index
-            self._column.set_visible(False)
             self._help_panel.set_visible(True)
             self._help_panel.grab_focus()
         else:
             self._help_panel.set_visible(False)
-            self._column.set_visible(True)
-            GLib.idle_add(self._restore_help_state)
 
     def show_status(self, message: str, kind: str = "info") -> None:
         self._status_label.set_text(message)
@@ -660,9 +651,10 @@ class BlockEditorView(Gtk.Box):
             "Navigation",
             "  j/k        move selection",
             "  Ctrl+j/k   move block",
-            "  ,j         first block",
-            "  ,k         last block",
-            "  dd         delete selected block",
+            "  ,j         last block",
+            "  ,k         first block",
+            "  ,toc       outline drill",
+            "  dd         cut selected block",
             "  yy         yank selected block",
             "  p          paste clipboard block",
             "  g/G        first/last block",
