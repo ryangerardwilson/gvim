@@ -191,7 +191,11 @@ def sample_document() -> BlockDocument:
         TextBlock(
             "Documentation Title",
             kind="title",
-        )
+        ),
+        TextBlock(
+            "",
+            kind="toc",
+        ),
     ]
 
     blocks.extend(
@@ -222,7 +226,7 @@ def sample_document() -> BlockDocument:
             ),
             TextBlock(
                 "You can structure documents with three heading levels.\n"
-                "Use ,h1, ,h2, and ,h3 for hierarchy.",
+                "Use ,bh1, ,bh2, and ,bh3 for hierarchy.",
                 kind="body",
             ),
             TextBlock(
