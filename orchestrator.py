@@ -614,7 +614,13 @@ def parse_args(
     )
     parser.add_argument("-v", "--version", action="store_true", help="Show version")
     parser.add_argument("-u", "--upgrade", action="store_true", help="Upgrade")
-    parser.add_argument("-e", "--export", help="Export .docv to HTML")
+    parser.add_argument(
+        "-e",
+        "--export",
+        nargs="?",
+        const="__default__",
+        help="Export .docv to HTML (optional output path)",
+    )
     parser.add_argument(
         "-q", action="store_true", dest="demo", help="Quickstart content"
     )
@@ -683,6 +689,8 @@ def _run_export(output_path: str, input_path: str | None) -> int:
     if not input_path:
         print("Export requires a .docv input path", file=sys.stderr)
         return 1
+    if output_path == "__default__" or not output_path:
+        output_path = str(Path(input_path).with_suffix(".html"))
     doc_path = Path(input_path).expanduser()
     if not doc_path.exists():
         print(f"Missing document: {doc_path}", file=sys.stderr)
