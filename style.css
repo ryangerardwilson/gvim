@@ -3,7 +3,7 @@
 }
 
 window {
-  background: transparent;
+  background: var(--app-background);
 }
 
 .block {

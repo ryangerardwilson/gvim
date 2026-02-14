@@ -16,6 +16,7 @@ class colors:
         block_h2 = "#d9d9d9"
         block_h3 = "#d4d4d4"
         block_toc = "#bfbfbf"
+        app_background = "rgba(0, 0, 0, 0.5)"
 
         # Inline image label text in GTK
         block_image_label = "#cfcfcf"
@@ -90,6 +91,7 @@ class colors:
         block_h2 = "#202020"
         block_h3 = "#242424"
         block_toc = "#3a3a3a"
+        app_background = "rgba(255, 255, 255, 0.5)"
 
         # Inline image label text in GTK
         block_image_label = "#2b2b2b"

@@ -518,6 +518,7 @@ def _load_css(css_path: Path, ui_mode: str) -> None:
     variables += f"  --block-h3-size: {font.block_h3};\n"
     variables += f"  --block-toc-color: {palette.block_toc};\n"
     variables += f"  --block-toc-size: {font.block_toc};\n"
+    variables += f"  --app-background: {palette.app_background};\n"
     variables += f"  --block-image-label-color: {palette.block_image_label};\n"
     variables += f"  --block-selected-shadow: {palette.block_selected_shadow};\n"
     variables += f"  --block-selected-background: {palette.block_selected_background};\n"
