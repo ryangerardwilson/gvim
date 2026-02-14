@@ -20,7 +20,10 @@ class RenderResult:
 
 
 def render_python_image(
-    source: str, python_path: str, render_format: str = "png"
+    source: str,
+    python_path: str,
+    render_format: str = "png",
+    ui_mode: str | None = None,
 ) -> RenderResult:
     if not python_path:
         return RenderResult(None, None, "Python path not configured")
@@ -39,7 +42,9 @@ def render_python_image(
 
         source_path.write_text(source, encoding="utf-8")
         runner_path.write_text(
-            _build_runner_script(source_path, output_path, render_format),
+            _build_runner_script(
+                source_path, output_path, render_format, ui_mode=ui_mode
+            ),
             encoding="utf-8",
         )
 
@@ -63,7 +68,7 @@ def render_python_image(
         except OSError as exc:
             return RenderResult(None, render_hash, f"Failed to read output: {exc}")
 
-        rendered_text = _replace_black_with_white_svg(rendered_text)
+        rendered_text = _replace_black_with_white_svg(rendered_text, ui_mode)
         return RenderResult(rendered_text, render_hash, None)
 
 
@@ -77,9 +82,12 @@ def _hash_render(source: str, python_path: str, render_format: str) -> str:
 
 
 def _build_runner_script(
-    source_path: Path, output_path: Path, render_format: str
+    source_path: Path,
+    output_path: Path,
+    render_format: str,
+    ui_mode: str | None = None,
 ) -> str:
-    palette = colors_for(config.get_ui_mode() or "dark")
+    palette = colors_for(ui_mode or config.get_ui_mode() or "dark")
     return (
         "from types import SimpleNamespace\n"
         "import matplotlib as _mpl\n"
@@ -105,8 +113,10 @@ def _build_runner_script(
     )
 
 
-def _replace_black_with_white_svg(svg_text: str) -> str:
-    palette = colors_for(config.get_ui_mode() or "dark")
+def _replace_black_with_white_svg(
+    svg_text: str, ui_mode: str | None = None
+) -> str:
+    palette = colors_for(ui_mode or config.get_ui_mode() or "dark")
     replacement_rgb = palette.py_render_replacement_rgb
     updated = svg_text
     replacements = {
@@ -167,4 +177,3 @@ def _append_fill_style(attrs: str) -> str:
     else:
         updated_style = f"{style};fill:{palette.py_render_replacement}"
     return attrs.replace(match.group(0), f'style="{updated_style}"')
-

@@ -49,7 +49,9 @@ def _build_html(
         elif isinstance(block, ThreeBlock):
             blocks_html.append(_render_three_block(block.source, index))
         elif isinstance(block, PythonImageBlock):
-            blocks_html.append(_render_pyimage_block(block, python_path))
+            blocks_html.append(
+                _render_pyimage_block(block, python_path, ui_mode)
+            )
         elif isinstance(block, LatexBlock):
             block_id = f"latex-{len(latex_sources)}"
             latex_sources.append((block_id, block.source))
@@ -135,6 +137,10 @@ def _build_html(
         f"      .block-toc {{ font-size: {font.export_toc}; color: var(--toc-color); white-space: pre-wrap; }}\n"
         "      .block-pyimage { text-align: center; }\n"
         "      .block-pyimage img { max-width: 100%; height: auto; display: inline-block; }\n"
+        "      :root[data-theme=\"dark\"] .block-pyimage img.light { display: none; }\n"
+        "      :root[data-theme=\"light\"] .block-pyimage img.dark { display: none; }\n"
+        "      :root[data-theme=\"dark\"] .block-pyimage img.light { display: none; }\n"
+        "      :root[data-theme=\"light\"] .block-pyimage img.dark { display: none; }\n"
         "      .block-three canvas { width: 100%; height: 300px; display: block; }\n"
         f"      .block-latex {{ font-size: {font.export_latex}; color: var(--latex-color); }}\n"
         "      .theme-toggle {\n"
@@ -259,17 +265,50 @@ def _render_text_block(block: TextBlock, toc_text: str) -> str:
     return f'<section class="block {kind_class}">{text}</section>'
 
 
-def _render_pyimage_block(block: PythonImageBlock, python_path: str | None) -> str:
+def _render_pyimage_block(
+    block: PythonImageBlock, python_path: str | None, ui_mode: str
+) -> str:
     if python_path:
-        result = py_runner.render_python_image(block.source, python_path, block.format)
-        if result.rendered_data and not result.error:
-            encoded = base64.b64encode(result.rendered_data.encode("utf-8")).decode(
+        dark_result = py_runner.render_python_image(
+            block.source, python_path, block.format, ui_mode="dark"
+        )
+        light_result = py_runner.render_python_image(
+            block.source, python_path, block.format, ui_mode="light"
+        )
+        if not dark_result.rendered_data and not light_result.rendered_data:
+            error = _escape_html(
+                dark_result.error
+                or light_result.error
+                or "Python render failed"
+            )
+            return (
+                f'<section class="block block-pyimage">Python render error: {error}</section>'
+            )
+        dark_encoded = (
+            base64.b64encode(dark_result.rendered_data.encode("utf-8")).decode(
                 "utf-8"
             )
-            src = f"data:image/svg+xml;base64,{encoded}"
-            return f'<section class="block block-pyimage"><img src="{src}" /></section>'
-        error = _escape_html(result.error or "Render failed")
-        return f'<section class="block block-pyimage">Python render error: {error}</section>'
+            if dark_result.rendered_data
+            else None
+        )
+        light_encoded = (
+            base64.b64encode(light_result.rendered_data.encode("utf-8")).decode(
+                "utf-8"
+            )
+            if light_result.rendered_data
+            else None
+        )
+        dark_img = (
+            f'<img class="pyimage dark" src="data:image/svg+xml;base64,{dark_encoded}" />'
+            if dark_encoded
+            else ""
+        )
+        light_img = (
+            f'<img class="pyimage light" src="data:image/svg+xml;base64,{light_encoded}" />'
+            if light_encoded
+            else ""
+        )
+        return f'<section class="block block-pyimage">{dark_img}{light_img}</section>'
     return '<section class="block block-pyimage">Python path not configured.</section>'
 
 

@@ -197,7 +197,7 @@ class font:
     export_h2 = "16px"
     export_h3 = "14px"
     export_body = "13px"
-    export_toc = "12px"
+    export_toc = "13px"
     export_latex = "20px"
 
 
