@@ -42,10 +42,12 @@ def _build_html(
     blocks_html = []
     latex_sources = []
     map_sources = []
-    toc_text = _build_toc(document)
+    toc_text, heading_ids = _build_toc(document)
     for index, block in enumerate(document.blocks):
         if isinstance(block, TextBlock):
-            blocks_html.append(_render_text_block(block, toc_text))
+            blocks_html.append(
+                _render_text_block(block, toc_text, heading_ids, index)
+            )
         elif isinstance(block, ThreeBlock):
             blocks_html.append(_render_three_block(block.source, index))
         elif isinstance(block, PythonImageBlock):
@@ -135,6 +137,12 @@ def _build_html(
         f"      .block-h3 {{ font-size: {font.export_h3}; font-weight: 600; color: var(--h3-color); }}\n"
         f"      .block-body {{ font-size: {font.export_body}; line-height: 1.6; color: var(--body-color); white-space: pre-wrap; }}\n"
         f"      .block-toc {{ font-size: {font.export_toc}; color: var(--toc-color); white-space: pre-wrap; }}\n"
+        "      .block-toc a { color: inherit; text-decoration: none; }\n"
+        "      .block-toc a:visited { color: inherit; }\n"
+        "      .block-toc a:hover { text-decoration: underline; }\n"
+        "      .toc-line { display: block; }\n"
+        "      .toc-line.depth-2 { padding-left: 16px; }\n"
+        "      .toc-line.depth-3 { padding-left: 32px; }\n"
         "      .block-pyimage { text-align: center; }\n"
         "      .block-pyimage img { max-width: 100%; height: auto; display: inline-block; }\n"
         "      :root[data-theme=\"dark\"] .block-pyimage img.light { display: none; }\n"
@@ -258,10 +266,18 @@ def _build_html(
     )
 
 
-def _render_text_block(block: TextBlock, toc_text: str) -> str:
+def _render_text_block(
+    block: TextBlock, toc_text: str, heading_ids: dict[int, str], index: int
+) -> str:
     kind_class = f"block-{block.kind}"
-    text_source = toc_text if block.kind == "toc" else block.text
+    if block.kind == "toc":
+        return f'<section class="block {kind_class}">{toc_text}</section>'
+    text_source = block.text
     text = _escape_html(text_source)
+    if block.kind in {"h1", "h2", "h3"}:
+        anchor = heading_ids.get(index)
+        if anchor:
+            return f'<section id="{anchor}" class="block {kind_class}">{text}</section>'
     return f'<section class="block {kind_class}">{text}</section>'
 
 
@@ -356,23 +372,50 @@ def _js_string(value: str) -> str:
     )
 
 
-def _build_toc(document: BlockDocument) -> str:
-    headings = []
-    for block in document.blocks:
+def _build_toc(document: BlockDocument) -> tuple[str, dict[int, str]]:
+    headings: list[tuple[int, str, str]] = []
+    heading_ids: dict[int, str] = {}
+    seen: dict[str, int] = {}
+    for index, block in enumerate(document.blocks):
         if isinstance(block, TextBlock) and block.kind in {"h1", "h2", "h3"}:
             text = block.text.strip().splitlines()[0] if block.text.strip() else ""
-            if text:
-                headings.append((block.kind, text))
+            if not text:
+                continue
+            anchor = _slugify_heading(text)
+            count = seen.get(anchor, 0) + 1
+            seen[anchor] = count
+            if count > 1:
+                anchor = f"{anchor}-{count}"
+            heading_ids[index] = anchor
+            headings.append((index, block.kind, text))
 
     if not headings:
-        return "Table of Contents\n\n(No headings yet)"
+        return "Table of Contents\n\n(No headings yet)", heading_ids
 
     lines = ["Table of Contents", ""]
-    for kind, text in headings:
-        indent = ""
-        if kind == "h2":
-            indent = "  "
-        elif kind == "h3":
-            indent = "    "
-        lines.append(f"{indent}- {text}")
-    return "\n".join(lines)
+    for index, kind, text in headings:
+        anchor = heading_ids.get(index)
+        if not anchor:
+            continue
+        anchor_link = f"<a href=\"#{anchor}\">{_escape_html(text)}</a>"
+        if kind == "h1":
+            lines.append(f"<div class=\"toc-line depth-1\">{anchor_link}</div>")
+        elif kind == "h2":
+            lines.append(f"<div class=\"toc-line depth-2\">{anchor_link}</div>")
+        else:
+            lines.append(f"<div class=\"toc-line depth-3\">{anchor_link}</div>")
+    return "\n".join(lines), heading_ids
+
+
+def _slugify_heading(text: str) -> str:
+    slug = []
+    prev_dash = False
+    for char in text.strip().lower():
+        if char.isalnum():
+            slug.append(char)
+            prev_dash = False
+        elif not prev_dash:
+            slug.append("-")
+            prev_dash = True
+    slug_text = "".join(slug).strip("-")
+    return slug_text or "section"
