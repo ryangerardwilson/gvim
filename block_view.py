@@ -749,12 +749,11 @@ class BlockEditorView(Gtk.Box):
                 self._vault_subtitle_label.set_text("")
                 empty_text = "No .docv files in this folder"
             else:
-                root_name = root.name or str(root)
                 if path == root:
-                    self._vault_subtitle_label.set_text(f"Root: {root_name}")
+                    self._vault_subtitle_label.set_text("/")
                 else:
-                    relative = str(path.relative_to(root))
-                    self._vault_subtitle_label.set_text(f"Path: {relative}")
+                    relative = path.relative_to(root).as_posix()
+                    self._vault_subtitle_label.set_text(f"/{relative}")
                 entries = self._collect_vault_entries(path)
                 if not entries:
                     empty_text = "No .docv files in this folder"
