@@ -651,6 +651,7 @@ class BlockEditorView(Gtk.Box):
         hint = Gtk.Label(label="")
         hint.add_css_class("vault-hint")
         hint.set_halign(Gtk.Align.START)
+        hint.set_visible(False)
         panel.append(hint)
 
         create_entry = Gtk.Entry()
@@ -696,7 +697,6 @@ class BlockEditorView(Gtk.Box):
                 self._vault_subtitle_label.set_text("Select a vault")
             else:
                 self._vault_subtitle_label.set_text("")
-            self._vault_hint_label.set_text("j/k move  Enter open  Esc back")
             for vault in self._vault_vaults:
                 name = vault.name or str(vault)
                 label = f"{name} - {vault}"
@@ -709,21 +709,14 @@ class BlockEditorView(Gtk.Box):
             path = self._vault_path
             if root is None or path is None:
                 self._vault_subtitle_label.set_text("")
-                self._vault_hint_label.set_text("Esc back")
                 empty_text = "No .docv files in this folder"
             else:
                 root_name = root.name or str(root)
                 if path == root:
                     self._vault_subtitle_label.set_text(f"Root: {root_name}")
-                    self._vault_hint_label.set_text(
-                        "j/k move  l/Enter open  ,n new  Esc back"
-                    )
                 else:
                     relative = str(path.relative_to(root))
                     self._vault_subtitle_label.set_text(f"Path: {relative}")
-                    self._vault_hint_label.set_text(
-                        "h up  j/k move  l/Enter open  ,n new  Esc back"
-                    )
                 entries = self._collect_vault_entries(path)
                 if not entries:
                     empty_text = "No .docv files in this folder"
@@ -1171,6 +1164,7 @@ class BlockEditorView(Gtk.Box):
             "  ,k         first block",
             "  ,i         index drill",
             "  ,v         vault",
+            "  ?          help",
             "  ,m         toggle theme",
             "  dd         cut selected block",
             "  yy         yank selected block",
@@ -1178,6 +1172,13 @@ class BlockEditorView(Gtk.Box):
             "  g/G        first/last block",
             "  Enter      edit selected block",
             "  q          quit without saving",
+            "",
+            "Vault",
+            "  j/k        move selection",
+            "  h/l        up/enter",
+            "  Enter      open",
+            "  ,n         new file/dir",
+            "  Esc        back to document",
             "",
             "Blocks",
             "  ,bn        normal text",
