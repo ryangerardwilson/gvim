@@ -657,6 +657,7 @@ def _load_css(css_path: Path, ui_mode: str) -> None:
     variables += f"  --vault-entry-border: {palette.vault_entry_border};\n"
     variables += f"  --vault-entry-text: {palette.vault_entry_text};\n"
     variables += f"  --vault-entry-placeholder: {palette.vault_entry_placeholder};\n"
+    variables += f"  --vault-entry-focus: {palette.vault_entry_focus};\n"
     variables += f"  --status-background: {palette.status_background};\n"
     variables += f"  --status-border: {palette.status_border};\n"
     variables += f"  --status-text-color: {palette.status_text};\n"

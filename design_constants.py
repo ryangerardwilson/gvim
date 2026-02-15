@@ -57,6 +57,7 @@ class colors:
         vault_entry_border = "rgba(255, 255, 255, 0.12)"
         vault_entry_text = "#e0e0e0"
         vault_entry_placeholder = "#8f8f8f"
+        vault_entry_focus = "rgba(255, 255, 255, 0.18)"
 
         # Status bar (GTK)
         status_background = "rgba(12, 12, 12, 0.95)"
@@ -155,6 +156,7 @@ class colors:
         vault_entry_border = "rgba(0, 0, 0, 0.12)"
         vault_entry_text = "#1f1f1f"
         vault_entry_placeholder = "#777777"
+        vault_entry_focus = "rgba(0, 0, 0, 0.2)"
 
         # Status bar (GTK)
         status_background = "rgba(245, 245, 245, 0.96)"
