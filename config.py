@@ -58,3 +58,35 @@ def set_ui_mode(mode: str) -> None:
     config = load_config()
     config["mode"] = mode
     save_config(config)
+
+
+def get_vaults() -> list[Path]:
+    config = load_config()
+    value = config.get("vaults")
+    if not isinstance(value, list):
+        return []
+    vaults: list[Path] = []
+    for entry in value:
+        if not isinstance(entry, str):
+            continue
+        if not entry.strip():
+            continue
+        vaults.append(Path(entry).expanduser())
+    return vaults
+
+
+def add_vault(vault_path: Path) -> bool:
+    config = load_config()
+    value = config.get("vaults")
+    if isinstance(value, list):
+        existing = [path for path in value if isinstance(path, str)]
+    else:
+        existing = []
+    normalized = str(vault_path.expanduser().resolve())
+    normalized_existing = {str(Path(path).expanduser().resolve()) for path in existing}
+    if normalized in normalized_existing:
+        return False
+    existing.append(normalized)
+    config["vaults"] = existing
+    save_config(config)
+    return True

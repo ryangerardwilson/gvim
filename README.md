@@ -56,7 +56,9 @@ python main.py
 
 ## Usage
 
-- `gtkv doc.docv` — open an existing document (required).
+- `gtkv` — open a new document.
+- `gtkv doc.docv` — open an existing document.
+- `gtkv init` — initialize a vault in the current directory.
 - `,bn` — insert a normal text block.
 - `,bht` — insert a title block.
 - `,bh1` / `,bh2` / `,bh3` — insert heading blocks.
@@ -69,6 +71,7 @@ python main.py
 - `,j` — jump to the last block.
 - `,k` — jump to the first block.
 - `,i` — open the index drill.
+- `,v` — open vault mode.
 - `,m` — toggle light/dark mode.
 - `Ctrl+j/k` — move the selected block up/down.
 - `dd` — cut the selected block.
@@ -81,6 +84,7 @@ python main.py
 - `Ctrl+E` — export HTML alongside the document.
 - `Ctrl+T` — save and exit.
 - `q` / `Ctrl+X` — exit without saving.
+- `Escape` — return to document mode from vault mode.
 - `-v` — print installed version.
 - `-u` — upgrade to the latest release.
 - `-e [output.html] doc.docv` — export to HTML (defaults to same basename).
@@ -107,6 +111,7 @@ Leader is `,` followed by a short token. Block commands are prefixed with `b`:
 - `,bltx` LaTeX block
 - `,bmap` map block
 - `,i` open the index drill
+- `,v` open vault mode
 - `,m` toggle light/dark mode
 
 ### Bash completion
@@ -116,6 +121,14 @@ The installer drops a completion script into
 `~/.bashrc` if needed.
 
 ---
+
+## Vaults
+
+Use `gtkv init` to create a vault anchor (`__init__.docv`) and register the
+current directory. Press `,v` to open vault mode, navigate with `h/j/k/l`, and
+press `Escape` to return to document mode. In vault mode, press `,n` to create
+a new `.docv` file (with extension) or a new folder (no extension). If all
+registered vaults have no `.docv` files, the app opens in vault mode.
 
 ## Notes
 

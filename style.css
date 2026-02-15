@@ -150,6 +150,64 @@ window {
   padding: 8px 4px;
 }
 
+.vault-overlay {
+  pointer-events: none;
+}
+
+.vault-panel {
+  pointer-events: auto;
+  background: var(--vault-panel-background);
+  border: 1px solid var(--vault-panel-border);
+  border-radius: 16px;
+  padding: 18px 20px;
+  min-width: 460px;
+  box-shadow: 0 18px 40px var(--vault-panel-shadow);
+}
+
+.vault-title {
+  font-size: var(--vault-title-size, 18px);
+  font-weight: 600;
+  color: var(--vault-title-color);
+  margin-bottom: 2px;
+}
+
+.vault-subtitle {
+  font-size: var(--vault-subtitle-size, 11px);
+  color: var(--vault-subtitle-color);
+  margin-bottom: 2px;
+}
+
+.vault-hint {
+  font-size: var(--vault-hint-size, 11px);
+  color: var(--vault-hint-color);
+  margin-bottom: 6px;
+}
+
+.vault-list {
+  padding: 4px 0;
+}
+
+.vault-row {
+  padding: 4px 8px;
+  border-radius: 8px;
+}
+
+.vault-row-selected {
+  background: var(--vault-row-selected-background);
+  border: 1px solid var(--vault-row-selected-border);
+}
+
+.vault-row-label {
+  font-size: var(--vault-row-size, 12px);
+  color: var(--vault-row-label-color);
+}
+
+.vault-empty {
+  font-size: var(--vault-empty-size, 12px);
+  color: var(--vault-empty-color);
+  padding: 8px 4px;
+}
+
 .status-bar {
   background: var(--status-background);
   border-top: 1px solid var(--status-border);

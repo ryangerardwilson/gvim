@@ -42,6 +42,18 @@ class colors:
         toc_row_label = "#d2d2d2"
         toc_empty = "#8f8f8f"
 
+        # Vault overlay (GTK)
+        vault_panel_background = "rgba(12, 12, 12, 0.94)"
+        vault_panel_border = "rgba(255, 255, 255, 0.08)"
+        vault_panel_shadow = "rgba(0, 0, 0, 0.45)"
+        vault_title = "#e6e6e6"
+        vault_subtitle = "#a9a9a9"
+        vault_hint = "#a9a9a9"
+        vault_row_selected_background = "rgba(40, 40, 40, 0.8)"
+        vault_row_selected_border = "rgba(255, 255, 255, 0.06)"
+        vault_row_label = "#d2d2d2"
+        vault_empty = "#8f8f8f"
+
         # Status bar (GTK)
         status_background = "rgba(12, 12, 12, 0.95)"
         status_border = "rgba(255, 255, 255, 0.06)"
@@ -124,6 +136,18 @@ class colors:
         toc_row_label = "#2a2a2a"
         toc_empty = "#666666"
 
+        # Vault overlay (GTK)
+        vault_panel_background = "rgba(250, 250, 250, 0.96)"
+        vault_panel_border = "rgba(0, 0, 0, 0.08)"
+        vault_panel_shadow = "rgba(0, 0, 0, 0.12)"
+        vault_title = "#111111"
+        vault_subtitle = "#666666"
+        vault_hint = "#666666"
+        vault_row_selected_background = "rgba(230, 230, 230, 0.9)"
+        vault_row_selected_border = "rgba(0, 0, 0, 0.06)"
+        vault_row_label = "#2a2a2a"
+        vault_empty = "#666666"
+
         # Status bar (GTK)
         status_background = "rgba(245, 245, 245, 0.96)"
         status_border = "rgba(0, 0, 0, 0.06)"
@@ -189,6 +213,11 @@ class font:
     toc_hint = "11px"
     toc_row = "12px"
     toc_empty = "12px"
+    vault_title = "18px"
+    vault_subtitle = "11px"
+    vault_hint = "11px"
+    vault_row = "12px"
+    vault_empty = "12px"
     status = "11px"
 
     # Export HTML sizes

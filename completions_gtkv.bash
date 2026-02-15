@@ -17,7 +17,11 @@ _gtkv_complete() {
       if [[ "${prev}" == "-e" || "${prev}" == "--export" ]]; then
         COMPREPLY=( $(compgen -f -- "${cur}") )
       else
-        COMPREPLY=( $(compgen -f -X '!*.docv' -- "${cur}") )
+        local opts
+        opts=( $(compgen -W "init" -- "${cur}") )
+        local files
+        files=( $(compgen -f -X '!*.docv' -- "${cur}") )
+        COMPREPLY=( "${opts[@]}" "${files[@]}" )
       fi
       ;;
   esac

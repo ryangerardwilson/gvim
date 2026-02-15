@@ -56,6 +56,8 @@ class Orchestrator:
         self._state = AppState()
         self._python_path: str | None = None
         self._ui_mode: str | None = None
+        self._mode = "document"
+        self._open_vault_on_start = False
         self._leader_active = False
         self._leader_buffer = ""
         self._leader_start = 0.0
@@ -73,16 +75,14 @@ class Orchestrator:
             return 0
         if options.upgrade:
             return _run_upgrade()
+        if options.file == "init":
+            return _run_init()
         if options.export:
             return _run_export(options.export, options.file)
 
-        if not options.file:
-            parser.print_help()
-            return 1
-
         self._demo = options.demo
 
-        document_path = Path(options.file).expanduser()
+        document_path = Path(options.file).expanduser() if options.file else None
         self._python_path = config.get_python_path()
         if not self._python_path:
             self._python_path = _prompt_python_path_cli()
@@ -95,14 +95,19 @@ class Orchestrator:
             if self._ui_mode:
                 config.set_ui_mode(self._ui_mode)
 
-        if document_path.exists():
+        if document_path is not None and document_path.exists():
             self._state.document = document_io.load(document_path)
         else:
             if self._demo:
                 self._state.document = sample_document()
             else:
                 self._state.document = BlockDocument([])
-            self._state.document.set_path(document_path)
+            if document_path is not None:
+                self._state.document.set_path(document_path)
+            if document_path is None and not self._demo:
+                vaults = [path for path in config.get_vaults() if path.exists()]
+                if vaults and not any(_vault_has_docs(path) for path in vaults):
+                    self._open_vault_on_start = True
 
         app = BlockApp(self)
         _load_css(Path(__file__).with_name("style.css"), self._ui_mode or "dark")
@@ -121,6 +126,9 @@ class Orchestrator:
         view.set_document(document)
         self._state.view = view
         self._render_python_images_on_start()
+        if self._open_vault_on_start:
+            self._open_vault_on_start = False
+            self._open_vault_mode()
 
         controller = Gtk.EventControllerKey()
         controller.set_propagation_phase(Gtk.PropagationPhase.CAPTURE)
@@ -133,6 +141,15 @@ class Orchestrator:
     def on_key_pressed(self, _controller, keyval, _keycode, state) -> bool:
         if self._state.document is None or self._state.view is None:
             return False
+
+        if self._mode == "vault":
+            action = self._state.view.handle_vault_key(keyval)
+            if action.opened_path is not None:
+                self._open_document_path(action.opened_path)
+                self._close_vault_mode()
+            elif action.close:
+                self._close_vault_mode()
+            return action.handled
 
         return self._handle_doc_keys(keyval, state)
 
@@ -357,6 +374,9 @@ class Orchestrator:
             self._leader_active = False
             self._toggle_ui_mode()
             return True
+        if self._leader_buffer == "v":
+            self._leader_active = False
+            return self._open_vault_mode()
         return True
 
     def _quit(self) -> None:
@@ -380,6 +400,39 @@ class Orchestrator:
             self._state.view.set_ui_mode(next_mode, self._state.document)
             self._rerender_map_blocks()
         self._show_status(f"Theme: {next_mode}", "success")
+
+    def _open_document_path(self, document_path: Path) -> None:
+        if not document_path.exists():
+            self._show_status("Missing document", "error")
+            return
+        try:
+            self._state.document = document_io.load(document_path)
+        except OSError:
+            self._show_status("Failed to load document", "error")
+            return
+        if self._state.view is not None and self._state.document is not None:
+            self._state.view.set_document(self._state.document)
+        self._render_python_images_on_start()
+
+    def _open_vault_mode(self) -> bool:
+        if self._state.active_editor is not None:
+            self._show_status("Close editor first", "error")
+            return True
+        if self._state.view is None:
+            return False
+        vaults = [path for path in config.get_vaults() if path.exists()]
+        if not vaults:
+            self._show_status("No vaults registered", "error")
+            return True
+        self._mode = "vault"
+        self._state.view.open_vault_mode(vaults)
+        return True
+
+    def _close_vault_mode(self) -> None:
+        if self._state.view is None:
+            return
+        self._mode = "document"
+        self._state.view.close_vault_mode()
 
     def _rerender_map_blocks(self) -> None:
         document = self._state.document
@@ -569,6 +622,23 @@ def _load_css(css_path: Path, ui_mode: str) -> None:
     variables += f"  --toc-row-size: {font.toc_row};\n"
     variables += f"  --toc-empty-color: {palette.toc_empty};\n"
     variables += f"  --toc-empty-size: {font.toc_empty};\n"
+    variables += f"  --vault-panel-background: {palette.vault_panel_background};\n"
+    variables += f"  --vault-panel-border: {palette.vault_panel_border};\n"
+    variables += f"  --vault-panel-shadow: {palette.vault_panel_shadow};\n"
+    variables += f"  --vault-title-color: {palette.vault_title};\n"
+    variables += f"  --vault-title-size: {font.vault_title};\n"
+    variables += f"  --vault-subtitle-color: {palette.vault_subtitle};\n"
+    variables += f"  --vault-subtitle-size: {font.vault_subtitle};\n"
+    variables += f"  --vault-hint-color: {palette.vault_hint};\n"
+    variables += f"  --vault-hint-size: {font.vault_hint};\n"
+    variables += (
+        f"  --vault-row-selected-background: {palette.vault_row_selected_background};\n"
+    )
+    variables += f"  --vault-row-selected-border: {palette.vault_row_selected_border};\n"
+    variables += f"  --vault-row-label-color: {palette.vault_row_label};\n"
+    variables += f"  --vault-row-size: {font.vault_row};\n"
+    variables += f"  --vault-empty-color: {palette.vault_empty};\n"
+    variables += f"  --vault-empty-size: {font.vault_empty};\n"
     variables += f"  --status-background: {palette.status_background};\n"
     variables += f"  --status-border: {palette.status_border};\n"
     variables += f"  --status-text-color: {palette.status_text};\n"
@@ -704,12 +774,43 @@ def _get_version() -> str:
     return __version__
 
 
+def _run_init() -> int:
+    root = Path.cwd()
+    anchor = root / "__init__.docv"
+    if anchor.exists() and not anchor.is_file():
+        print("__init__.docv exists and is not a file", file=sys.stderr)
+        return 1
+    if not anchor.exists():
+        try:
+            document_io.save(anchor, BlockDocument([]))
+        except OSError:
+            print("Failed to create __init__.docv", file=sys.stderr)
+            return 1
+    added = config.add_vault(root)
+    if added:
+        print(f"Vault registered: {root}")
+    else:
+        print(f"Vault already registered: {root}")
+    return 0
+
+
 def _find_project_root() -> Path | None:
     current = Path.cwd()
     for candidate in [current, *current.parents]:
         if (candidate / "__init__.docv").exists():
             return candidate
     return None
+
+
+def _vault_has_docs(root: Path) -> bool:
+    try:
+        for path in root.rglob("*.docv"):
+            if path.name == "__init__.docv":
+                continue
+            return True
+    except OSError:
+        return False
+    return False
 
 
 def _run_export_all() -> int:

@@ -25,6 +25,7 @@ try:
 except Exception:
     WebKit = None
 
+import document_io
 from block_model import (
     BlockDocument,
     LatexBlock,
@@ -46,6 +47,20 @@ class OutlineEntry:
     depth: int
     text: str
     has_children: bool
+
+
+@dataclass
+class VaultEntry:
+    path: Path
+    label: str
+    kind: str
+
+
+@dataclass
+class VaultAction:
+    handled: bool
+    opened_path: Path | None = None
+    close: bool = False
 
 
 class _TocBlockView(Gtk.Frame):
@@ -136,6 +151,21 @@ class BlockEditorView(Gtk.Box):
         self._toc_leader_buffer = ""
         self._toc_leader_start = 0.0
 
+        self._vault_visible = False
+        self._vault_panel = self._build_vault_overlay()
+        self._vault_panel.set_visible(False)
+        self._vault_entries: list[VaultEntry] = []
+        self._vault_rows: list[Gtk.Widget] = []
+        self._vault_selected = 0
+        self._vault_screen = "chooser"
+        self._vault_root: Path | None = None
+        self._vault_path: Path | None = None
+        self._vault_vaults: list[Path] = []
+        self._vault_leader_active = False
+        self._vault_leader_buffer = ""
+        self._vault_leader_start = 0.0
+        self._vault_create_active = False
+
         self._status_timer_id: int | None = None
         self._scroll_idle_id: int | None = None
         self._scroll_retries = 0
@@ -156,6 +186,7 @@ class BlockEditorView(Gtk.Box):
         self._overlay.set_child(self._scroller)
         self._overlay.add_overlay(self._toc_panel)
         self._overlay.add_overlay(self._help_panel)
+        self._overlay.add_overlay(self._vault_panel)
 
         self.append(self._overlay)
         self.append(self._status_bar)
@@ -486,6 +517,364 @@ class BlockEditorView(Gtk.Box):
             return True
         return True
 
+    def vault_active(self) -> bool:
+        return self._vault_visible
+
+    def open_vault_mode(self, vaults: Sequence[Path]) -> None:
+        self._vault_visible = True
+        self._vault_panel.set_visible(True)
+        self._vault_vaults = list(vaults)
+        if len(self._vault_vaults) == 1:
+            self._vault_screen = "browser"
+            self._vault_root = self._vault_vaults[0]
+            self._vault_path = self._vault_root
+        else:
+            self._vault_screen = "chooser"
+            self._vault_root = None
+            self._vault_path = None
+        self._vault_selected = 0
+        self._render_vault_entries()
+        self._vault_panel.grab_focus()
+
+    def close_vault_mode(self) -> None:
+        if not self._vault_visible:
+            return
+        self._vault_visible = False
+        self._vault_panel.set_visible(False)
+
+    def handle_vault_key(self, keyval: int) -> VaultAction:
+        if not self._vault_visible:
+            return VaultAction(False)
+        if self._vault_leader_active and time.monotonic() - self._vault_leader_start > 2.0:
+            self._vault_leader_active = False
+            self._vault_leader_buffer = ""
+        if self._vault_create_active:
+            if keyval == Gdk.KEY_Escape:
+                self._cancel_vault_create()
+                return VaultAction(True)
+            if keyval in (Gdk.KEY_Return, Gdk.KEY_KP_Enter):
+                if self._confirm_vault_create():
+                    return VaultAction(True)
+                return VaultAction(True)
+            return VaultAction(False)
+        if keyval == ord(",") and not self._vault_leader_active:
+            self._vault_leader_active = True
+            self._vault_leader_buffer = ""
+            self._vault_leader_start = time.monotonic()
+            return VaultAction(True)
+        if self._vault_leader_active:
+            if keyval == Gdk.KEY_Escape:
+                self._vault_leader_active = False
+                self._vault_leader_buffer = ""
+                return VaultAction(True)
+            if 32 <= keyval <= 126:
+                self._vault_leader_buffer += chr(keyval)
+            else:
+                return VaultAction(True)
+            if self._vault_leader_buffer == "n":
+                self._vault_leader_active = False
+                self._vault_leader_buffer = ""
+                self._start_vault_create()
+                return VaultAction(True)
+            if not "n".startswith(self._vault_leader_buffer):
+                self._vault_leader_active = False
+                self._vault_leader_buffer = ""
+            return VaultAction(True)
+        if keyval == Gdk.KEY_Escape:
+            return VaultAction(True, close=True)
+        if keyval in (ord("j"), ord("J")):
+            self._move_vault_selection(1)
+            return VaultAction(True)
+        if keyval in (ord("k"), ord("K")):
+            self._move_vault_selection(-1)
+            return VaultAction(True)
+        if keyval in (ord("h"), ord("H")):
+            if (
+                self._vault_screen == "browser"
+                and self._vault_root is not None
+                and self._vault_path is not None
+                and self._vault_path != self._vault_root
+            ):
+                self._vault_path = self._vault_path.parent
+                self._vault_selected = 0
+                self._render_vault_entries()
+            return VaultAction(True)
+        if keyval in (ord("l"), ord("L"), Gdk.KEY_Return, Gdk.KEY_KP_Enter):
+            entry = self._get_selected_vault_entry()
+            if entry is None:
+                return VaultAction(True)
+            if self._vault_screen == "chooser":
+                self._vault_screen = "browser"
+                self._vault_root = entry.path
+                self._vault_path = entry.path
+                self._vault_selected = 0
+                self._render_vault_entries()
+                return VaultAction(True)
+            if entry.kind == "dir":
+                self._vault_path = entry.path
+                self._vault_selected = 0
+                self._render_vault_entries()
+                return VaultAction(True)
+            if entry.kind == "file":
+                return VaultAction(True, opened_path=entry.path)
+            return VaultAction(True)
+        return VaultAction(True)
+
+    def _build_vault_overlay(self) -> Gtk.Widget:
+        overlay = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
+        overlay.set_hexpand(True)
+        overlay.set_vexpand(True)
+        overlay.set_halign(Gtk.Align.CENTER)
+        overlay.set_valign(Gtk.Align.START)
+        overlay.set_margin_top(32)
+        overlay.add_css_class("vault-overlay")
+
+        panel = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=8)
+        panel.add_css_class("vault-panel")
+        panel.set_halign(Gtk.Align.CENTER)
+        panel.set_valign(Gtk.Align.START)
+        panel.set_margin_top(12)
+        panel.set_margin_bottom(12)
+        panel.set_margin_start(12)
+        panel.set_margin_end(12)
+
+        title = Gtk.Label(label="Vault")
+        title.add_css_class("vault-title")
+        title.set_halign(Gtk.Align.START)
+        panel.append(title)
+
+        subtitle = Gtk.Label(label="")
+        subtitle.add_css_class("vault-subtitle")
+        subtitle.set_halign(Gtk.Align.START)
+        panel.append(subtitle)
+
+        hint = Gtk.Label(label="")
+        hint.add_css_class("vault-hint")
+        hint.set_halign(Gtk.Align.START)
+        panel.append(hint)
+
+        create_entry = Gtk.Entry()
+        create_entry.set_placeholder_text("New file or directory")
+        create_entry.set_hexpand(True)
+        create_entry.set_visible(False)
+        panel.append(create_entry)
+
+        scroller = Gtk.ScrolledWindow()
+        scroller.set_policy(Gtk.PolicyType.AUTOMATIC, Gtk.PolicyType.AUTOMATIC)
+        scroller.set_hexpand(True)
+        scroller.set_vexpand(True)
+        scroller.set_min_content_height(320)
+
+        vault_list = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=4)
+        vault_list.add_css_class("vault-list")
+        scroller.set_child(vault_list)
+        panel.append(scroller)
+
+        self._vault_title_label = title
+        self._vault_subtitle_label = subtitle
+        self._vault_hint_label = hint
+        self._vault_create_entry = create_entry
+        self._vault_list = vault_list
+        self._vault_scroller = scroller
+
+        overlay.append(panel)
+        return overlay
+
+    def _render_vault_entries(self) -> None:
+        self._vault_create_entry.set_visible(False)
+        self._vault_create_active = False
+        for child in list(self._vault_list):
+            self._vault_list.remove(child)
+        self._vault_rows = []
+
+        entries: list[VaultEntry] = []
+        empty_text = ""
+
+        if self._vault_screen == "chooser":
+            self._vault_title_label.set_text("Vaults")
+            if self._vault_vaults:
+                self._vault_subtitle_label.set_text("Select a vault")
+            else:
+                self._vault_subtitle_label.set_text("")
+            self._vault_hint_label.set_text("j/k move  Enter open  Esc back")
+            for vault in self._vault_vaults:
+                name = vault.name or str(vault)
+                label = f"{name} - {vault}"
+                entries.append(VaultEntry(path=vault, label=label, kind="vault"))
+            if not entries:
+                empty_text = "No vaults registered"
+        else:
+            self._vault_title_label.set_text("Vault")
+            root = self._vault_root
+            path = self._vault_path
+            if root is None or path is None:
+                self._vault_subtitle_label.set_text("")
+                self._vault_hint_label.set_text("Esc back")
+                empty_text = "No .docv files in this folder"
+            else:
+                root_name = root.name or str(root)
+                if path == root:
+                    self._vault_subtitle_label.set_text(f"Root: {root_name}")
+                    self._vault_hint_label.set_text(
+                        "j/k move  l/Enter open  ,n new  Esc back"
+                    )
+                else:
+                    relative = str(path.relative_to(root))
+                    self._vault_subtitle_label.set_text(f"Path: {relative}")
+                    self._vault_hint_label.set_text(
+                        "h up  j/k move  l/Enter open  ,n new  Esc back"
+                    )
+                entries = self._collect_vault_entries(path)
+                if not entries:
+                    empty_text = "No .docv files in this folder"
+
+        self._vault_entries = entries
+
+        if not entries:
+            empty = Gtk.Label(label=empty_text)
+            empty.add_css_class("vault-empty")
+            empty.set_halign(Gtk.Align.START)
+            self._vault_list.append(empty)
+            return
+
+        if self._vault_selected >= len(entries):
+            self._vault_selected = max(0, len(entries) - 1)
+
+        for index, entry in enumerate(entries):
+            row = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL)
+            row.add_css_class("vault-row")
+            if index == self._vault_selected:
+                row.add_css_class("vault-row-selected")
+            label = Gtk.Label(label=entry.label)
+            label.add_css_class("vault-row-label")
+            label.set_halign(Gtk.Align.START)
+            label.set_hexpand(True)
+            row.append(label)
+            self._vault_list.append(row)
+            self._vault_rows.append(row)
+
+        GLib.idle_add(self._scroll_vault_to_selected)
+
+    def _start_vault_create(self) -> None:
+        if self._vault_screen != "browser":
+            self.show_status("Select a vault first", "error")
+            return
+        self._vault_create_active = True
+        self._vault_create_entry.set_text("")
+        self._vault_create_entry.set_visible(True)
+        self._vault_create_entry.grab_focus()
+
+    def _cancel_vault_create(self) -> None:
+        self._vault_create_active = False
+        self._vault_create_entry.set_visible(False)
+        self._vault_panel.grab_focus()
+
+    def _confirm_vault_create(self) -> bool:
+        text = self._vault_create_entry.get_text().strip()
+        if not text:
+            self.show_status("Name required", "error")
+            return False
+        if self._vault_root is None or self._vault_path is None:
+            self.show_status("No vault open", "error")
+            return False
+        if Path(text).is_absolute():
+            self.show_status("Name must be relative", "error")
+            return False
+        target = (self._vault_path / text).resolve()
+        root = self._vault_root.resolve()
+        if target != root and root not in target.parents:
+            self.show_status("Path must stay in vault", "error")
+            return False
+        if target.exists():
+            self.show_status("Already exists", "error")
+            return False
+        if target.suffix == ".docv":
+            try:
+                target.parent.mkdir(parents=True, exist_ok=True)
+                document_io.save(target, BlockDocument([]))
+            except OSError:
+                self.show_status("Failed to create file", "error")
+                return False
+        else:
+            try:
+                target.mkdir(parents=True, exist_ok=True)
+            except OSError:
+                self.show_status("Failed to create directory", "error")
+                return False
+        self._vault_create_active = False
+        self._vault_create_entry.set_visible(False)
+        self._vault_selected = 0
+        self._render_vault_entries()
+        self._vault_panel.grab_focus()
+        return True
+
+    def _collect_vault_entries(self, path: Path) -> list[VaultEntry]:
+        try:
+            children = list(path.iterdir())
+        except OSError:
+            return []
+        dirs: list[VaultEntry] = []
+        files: list[VaultEntry] = []
+        for child in children:
+            name = child.name
+            if name.startswith("."):
+                continue
+            if child.is_dir():
+                dirs.append(VaultEntry(path=child, label=f"{name}/", kind="dir"))
+            elif (
+                child.is_file()
+                and child.suffix == ".docv"
+                and child.name != "__init__.docv"
+            ):
+                files.append(VaultEntry(path=child, label=name, kind="file"))
+        dirs.sort(key=lambda entry: entry.label.lower())
+        files.sort(key=lambda entry: entry.label.lower())
+        return dirs + files
+
+    def _move_vault_selection(self, delta: int) -> None:
+        if not self._vault_entries:
+            return
+        new_index = max(0, min(self._vault_selected + delta, len(self._vault_entries) - 1))
+        if new_index == self._vault_selected:
+            return
+        if 0 <= self._vault_selected < len(self._vault_rows):
+            self._vault_rows[self._vault_selected].remove_css_class(
+                "vault-row-selected"
+            )
+        self._vault_selected = new_index
+        if 0 <= self._vault_selected < len(self._vault_rows):
+            self._vault_rows[self._vault_selected].add_css_class(
+                "vault-row-selected"
+            )
+        self._scroll_vault_to_selected()
+
+    def _get_selected_vault_entry(self) -> VaultEntry | None:
+        if not self._vault_entries:
+            return None
+        if self._vault_selected < 0 or self._vault_selected >= len(self._vault_entries):
+            return None
+        return self._vault_entries[self._vault_selected]
+
+    def _scroll_vault_to_selected(self) -> bool:
+        if not self._vault_rows or self._vault_scroller is None:
+            return False
+        if self._vault_selected < 0 or self._vault_selected >= len(self._vault_rows):
+            return False
+        row = self._vault_rows[self._vault_selected]
+        allocation = row.get_allocation()
+        vadjustment = self._vault_scroller.get_vadjustment()
+        if vadjustment is None:
+            return False
+        top = allocation.y
+        bottom = allocation.y + allocation.height
+        view_top = vadjustment.get_value()
+        view_bottom = view_top + vadjustment.get_page_size()
+        if top < view_top:
+            vadjustment.set_value(max(0, top - 12))
+        elif bottom > view_bottom:
+            vadjustment.set_value(max(0, bottom - vadjustment.get_page_size() + 12))
+        return False
+
     def _build_toc_overlay(self) -> Gtk.Widget:
         overlay = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
         overlay.set_hexpand(True)
@@ -504,7 +893,7 @@ class BlockEditorView(Gtk.Box):
         panel.set_margin_start(12)
         panel.set_margin_end(12)
 
-        title = Gtk.Label(label="Table of Contents")
+        title = Gtk.Label(label="Index")
         title.add_css_class("toc-title")
         title.set_halign(Gtk.Align.START)
         panel.append(title)
@@ -781,6 +1170,7 @@ class BlockEditorView(Gtk.Box):
             "  ,j         last block",
             "  ,k         first block",
             "  ,i         index drill",
+            "  ,v         vault",
             "  ,m         toggle theme",
             "  dd         cut selected block",
             "  yy         yank selected block",
