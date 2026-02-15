@@ -167,6 +167,8 @@ class BlockEditorView(Gtk.Box):
         self._vault_leader_buffer = ""
         self._vault_leader_start = 0.0
         self._vault_create_active = False
+        self._vault_rename_active = False
+        self._vault_rename_source: Path | None = None
         self._vault_pending_key: str | None = None
         self._vault_pending_start = 0.0
         self._vault_clipboard_mode: str | None = None
@@ -578,6 +580,15 @@ class BlockEditorView(Gtk.Box):
                     return VaultAction(True)
                 return VaultAction(True)
             return VaultAction(False)
+        if self._vault_rename_active:
+            if keyval == Gdk.KEY_Escape:
+                self._cancel_vault_rename()
+                return VaultAction(True)
+            if keyval in (Gdk.KEY_Return, Gdk.KEY_KP_Enter):
+                if self._confirm_vault_rename():
+                    return VaultAction(True)
+                return VaultAction(True)
+            return VaultAction(False)
         if keyval == ord(",") and not self._vault_leader_active:
             self._vault_leader_active = True
             self._vault_leader_buffer = ""
@@ -597,12 +608,18 @@ class BlockEditorView(Gtk.Box):
                 self._vault_leader_buffer = ""
                 self._start_vault_create()
                 return VaultAction(True)
+            if self._vault_leader_buffer == "rn":
+                self._vault_leader_active = False
+                self._vault_leader_buffer = ""
+                self._start_vault_rename()
+                return VaultAction(True)
             if self._vault_leader_buffer == "m":
                 self._vault_leader_active = False
                 self._vault_leader_buffer = ""
                 return VaultAction(True, toggle_theme=True)
             if not any(
-                command.startswith(self._vault_leader_buffer) for command in ("n", "m")
+                command.startswith(self._vault_leader_buffer)
+                for command in ("n", "rn", "m")
             ):
                 self._vault_leader_active = False
                 self._vault_leader_buffer = ""
@@ -730,6 +747,9 @@ class BlockEditorView(Gtk.Box):
     def _render_vault_entries(self) -> None:
         self._vault_create_entry.set_visible(False)
         self._vault_create_active = False
+        if self._vault_rename_active:
+            self._vault_rename_active = False
+            self._vault_rename_source = None
         for child in list(self._vault_list):
             self._vault_list.remove(child)
         self._vault_rows = []
@@ -807,6 +827,34 @@ class BlockEditorView(Gtk.Box):
         self._vault_create_entry.set_visible(False)
         self._vault_panel.grab_focus()
 
+    def _start_vault_rename(self) -> None:
+        if self._vault_screen != "browser":
+            self.show_status("Select a vault first", "error")
+            return
+        entry = self._get_selected_vault_entry()
+        if entry is None or entry.kind not in {"dir", "file"}:
+            self.show_status("Nothing to rename", "error")
+            return
+        self._vault_rename_active = True
+        self._vault_rename_source = entry.path
+        self._vault_create_entry.set_text(entry.label.rstrip("/"))
+        self._vault_create_entry.select_region(-1, -1)
+        self._vault_create_entry.set_position(-1)
+        self._vault_create_entry.set_visible(True)
+        self._vault_create_entry.grab_focus()
+        GLib.idle_add(self._clear_vault_entry_selection)
+
+    def _cancel_vault_rename(self) -> None:
+        self._vault_rename_active = False
+        self._vault_rename_source = None
+        self._vault_create_entry.set_visible(False)
+        self._vault_panel.grab_focus()
+
+    def _clear_vault_entry_selection(self) -> bool:
+        self._vault_create_entry.select_region(-1, -1)
+        self._vault_create_entry.set_position(-1)
+        return False
+
     def _confirm_vault_create(self) -> bool:
         text = self._vault_create_entry.get_text().strip()
         if not text:
@@ -842,6 +890,42 @@ class BlockEditorView(Gtk.Box):
         self._vault_selected = 0
         self._render_vault_entries()
         self._vault_panel.grab_focus()
+        return True
+
+    def _confirm_vault_rename(self) -> bool:
+        text = self._vault_create_entry.get_text().strip()
+        if not text:
+            self.show_status("Name required", "error")
+            return False
+        if self._vault_root is None or self._vault_path is None:
+            self.show_status("No vault open", "error")
+            return False
+        if self._vault_rename_source is None:
+            self.show_status("Nothing to rename", "error")
+            return False
+        if Path(text).is_absolute():
+            self.show_status("Name must be relative", "error")
+            return False
+        target = (self._vault_path / text).resolve()
+        root = self._vault_root.resolve()
+        if not self._vault_path_in_root(target, root):
+            self.show_status("Path must stay in vault", "error")
+            return False
+        if target.exists():
+            self.show_status("Already exists", "error")
+            return False
+        try:
+            shutil.move(self._vault_rename_source.as_posix(), target.as_posix())
+        except OSError:
+            self.show_status("Rename failed", "error")
+            return False
+        self._vault_rename_active = False
+        self._vault_rename_source = None
+        self._vault_create_entry.set_visible(False)
+        self._vault_selected = 0
+        self._render_vault_entries()
+        self._vault_panel.grab_focus()
+        self.show_status("Renamed", "success")
         return True
 
     def _vault_path_in_root(self, target: Path, root: Path) -> bool:
@@ -1355,6 +1439,7 @@ class BlockEditorView(Gtk.Box):
             "  h/l        up/enter",
             "  Enter      open",
             "  ,n         new file/dir",
+            "  ,rn        rename",
             "  yy         copy",
             "  dd         cut",
             "  p          paste",
