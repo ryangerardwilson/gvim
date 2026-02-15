@@ -566,9 +566,15 @@ class BlockEditorView(Gtk.Box):
     def handle_vault_key(self, keyval: int) -> VaultAction:
         if not self._vault_visible:
             return VaultAction(False)
-        if self._vault_pending_key and time.monotonic() - self._vault_pending_start > 1.2:
+        if (
+            self._vault_pending_key
+            and time.monotonic() - self._vault_pending_start > 1.2
+        ):
             self._vault_pending_key = None
-        if self._vault_leader_active and time.monotonic() - self._vault_leader_start > 2.0:
+        if (
+            self._vault_leader_active
+            and time.monotonic() - self._vault_leader_start > 2.0
+        ):
             self._vault_leader_active = False
             self._vault_leader_buffer = ""
         if self._vault_create_active:
@@ -1061,9 +1067,7 @@ class BlockEditorView(Gtk.Box):
         except OSError:
             return []
         cut_path = (
-            self._vault_clipboard_path
-            if self._vault_clipboard_mode == "cut"
-            else None
+            self._vault_clipboard_path if self._vault_clipboard_mode == "cut" else None
         )
         dirs: list[VaultEntry] = []
         files: list[VaultEntry] = []
@@ -1088,7 +1092,9 @@ class BlockEditorView(Gtk.Box):
     def _move_vault_selection(self, delta: int) -> None:
         if not self._vault_entries:
             return
-        new_index = max(0, min(self._vault_selected + delta, len(self._vault_entries) - 1))
+        new_index = max(
+            0, min(self._vault_selected + delta, len(self._vault_entries) - 1)
+        )
         if new_index == self._vault_selected:
             return
         if 0 <= self._vault_selected < len(self._vault_rows):
@@ -1097,9 +1103,7 @@ class BlockEditorView(Gtk.Box):
             )
         self._vault_selected = new_index
         if 0 <= self._vault_selected < len(self._vault_rows):
-            self._vault_rows[self._vault_selected].add_css_class(
-                "vault-row-selected"
-            )
+            self._vault_rows[self._vault_selected].add_css_class("vault-row-selected")
         self._scroll_vault_to_selected()
 
     def _get_selected_vault_entry(self) -> VaultEntry | None:

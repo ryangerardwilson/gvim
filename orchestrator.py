@@ -648,7 +648,9 @@ def _load_css(css_path: Path, ui_mode: str) -> None:
     variables += (
         f"  --vault-row-selected-background: {palette.vault_row_selected_background};\n"
     )
-    variables += f"  --vault-row-selected-border: {palette.vault_row_selected_border};\n"
+    variables += (
+        f"  --vault-row-selected-border: {palette.vault_row_selected_border};\n"
+    )
     variables += f"  --vault-row-label-color: {palette.vault_row_label};\n"
     variables += f"  --vault-row-size: {font.vault_row};\n"
     variables += f"  --vault-empty-color: {palette.vault_empty};\n"

@@ -128,8 +128,8 @@ Use `gtkv init` to create a vault anchor (`__init__.docv`) and register the
 current directory. Press `,v` to open vault mode, navigate with `h/j/k/l`, and
 press `Escape` to return to document mode. In vault mode, press `,n` to create
 a new `.docv` file (with extension) or a new folder (no extension). If all
-registered vaults have no `.docv` files, the app opens in vault mode.
-In vault mode, `yy` copies, `dd` cuts, and `p` pastes into the current folder.
+registered vaults have no `.docv` files, the app opens in vault mode. In vault
+mode, `yy` copies, `dd` cuts, and `p` pastes into the current folder.
 
 ## Notes
 
@@ -266,7 +266,8 @@ Export a document to a self-contained HTML page (toggleable light/dark):
 gtkv -e [output.html] doc.docv
 ```
 
-Export all `.docv` documents under a project root (requires `__init__.docv` in that root):
+Export all `.docv` documents under a project root (requires `__init__.docv` in
+that root):
 
 ```bash
 gtkv -e
