@@ -177,12 +177,42 @@ cat > "$INSTALL_DIR/$APP" <<'EOF'
 #!/usr/bin/env bash
 set -euo pipefail
 APP=gvim
+CONFIG_PATH="${XDG_CONFIG_HOME:-$HOME/.config}/${APP}/config.json"
+PYTHON_BIN="python3"
+PYTHON_FALLBACK=true
+if [[ -f "$CONFIG_PATH" ]]; then
+  resolved=$(python3 - <<'PY'
+import json
+import os
+import sys
+
+path = os.environ.get("CONFIG_PATH")
+if not path:
+    sys.exit(0)
+try:
+    with open(path, "r", encoding="utf-8") as fh:
+        data = json.load(fh)
+except Exception:
+    sys.exit(0)
+value = data.get("python_path")
+if isinstance(value, str) and value.strip():
+    print(value.strip())
+PY
+  )
+  if [[ -n "${resolved:-}" && -x "${resolved}" ]]; then
+    PYTHON_BIN="$resolved"
+    PYTHON_FALLBACK=false
+  fi
+fi
+if [[ "$PYTHON_FALLBACK" == true ]]; then
+  exec "$PYTHON_BIN" "${HOME}/.${APP}/app/${APP}/main.py" "$@"
+fi
 case "${1:-}" in
   init|-v|--version|-h|--help|-u|--upgrade)
-    exec python3 "${HOME}/.${APP}/app/${APP}/main.py" "$@"
+    exec "$PYTHON_BIN" "${HOME}/.${APP}/app/${APP}/main.py" "$@"
     ;;
 esac
-nohup python3 "${HOME}/.${APP}/app/${APP}/main.py" "$@" >/dev/null 2>&1 &
+nohup "$PYTHON_BIN" "${HOME}/.${APP}/app/${APP}/main.py" "$@" >/dev/null 2>&1 &
 disown
 EOF
 chmod 755 "$INSTALL_DIR/$APP"
