@@ -85,10 +85,12 @@ class LoadingScreen:
         center.set_halign(Gtk.Align.CENTER)
         center.set_valign(Gtk.Align.CENTER)
 
-        ascii_label = Gtk.Label(label=ASCII_LOGO)
+        ascii_label = Gtk.Label(label=_normalize_ascii_logo(ASCII_LOGO))
         ascii_label.add_css_class("loading-ascii")
         ascii_label.set_halign(Gtk.Align.CENTER)
+        ascii_label.set_hexpand(True)
         ascii_label.set_justify(Gtk.Justification.CENTER)
+        ascii_label.set_xalign(0.5)
         center.append(ascii_label)
 
         overlay.add_overlay(center)
@@ -155,3 +157,17 @@ class LoadingScreen:
                 drop["speed"] = random.uniform(8.0, 22.0)
                 drop["trail"] = random.randint(4, 10)
                 drop["delay"] = random.uniform(0.0, 300.0)
+
+
+def _normalize_ascii_logo(logo: str) -> str:
+    lines = logo.splitlines()
+    if not lines:
+        return logo
+    left_trimmed = [line.lstrip(" ") for line in lines]
+    left_indent = [len(line) - len(trimmed) for line, trimmed in zip(lines, left_trimmed)]
+    min_indent = min(left_indent) if left_indent else 0
+    trimmed_lines = [line[min_indent:] for line in lines]
+    line_lengths = [len(line.rstrip(" ")) for line in trimmed_lines]
+    max_len = max(line_lengths) if line_lengths else 0
+    padded = [line.rstrip(" ").ljust(max_len) for line in trimmed_lines]
+    return "\n".join(padded)
