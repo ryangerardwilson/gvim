@@ -102,10 +102,10 @@ class Orchestrator:
                 config.set_ui_mode(self._ui_mode)
 
         if document_path is not None and document_path.exists():
-            vault_root = _find_vault_root_for_path(document_path)
+            vault_root = _find_config_vault_for_path(document_path)
             if vault_root is None:
                 print(
-                    "This file is not inside a gvim vault. Initialize a vault in the project root with 'gvim init', then re-run this command.",
+                    "This file is not inside a configured gvim vault. Register a vault with 'gvim init', then re-run this command.",
                     file=sys.stderr,
                 )
                 return 1
@@ -952,16 +952,6 @@ def _get_version() -> str:
 
 def _run_init() -> int:
     root = Path.cwd()
-    anchor = root / "__init__.gvim"
-    if anchor.exists() and not anchor.is_file():
-        print("__init__.gvim exists and is not a file", file=sys.stderr)
-        return 1
-    if not anchor.exists():
-        try:
-            document_io.save(anchor, BlockDocument([]))
-        except OSError:
-            print("Failed to create __init__.gvim", file=sys.stderr)
-            return 1
     added = config.add_vault(root)
     if added:
         print(f"Vault registered: {root}")
@@ -970,38 +960,22 @@ def _run_init() -> int:
     return 0
 
 
-def _find_project_root() -> Path | None:
-    current = Path.cwd()
-    for candidate in [current, *current.parents]:
-        if (candidate / "__init__.gvim").exists():
-            return candidate
+def _find_config_vault_for_path(path: Path) -> Path | None:
+    vaults = [vault.resolve() for vault in config.get_vaults() if vault.exists()]
+    if not vaults:
+        return None
+    resolved_path = path.resolve()
+    for vault in vaults:
+        if resolved_path == vault or vault in resolved_path.parents:
+            return vault
     return None
-
-
-def _find_vault_root_for_path(path: Path) -> Path | None:
-    current = path.parent
-    for candidate in [current, *current.parents]:
-        if (candidate / "__init__.gvim").exists():
-            return candidate
-    return None
-
-
-def _vault_has_docs(root: Path) -> bool:
-    try:
-        for path in root.rglob("*.gvim"):
-            if path.name == "__init__.gvim":
-                continue
-            return True
-    except OSError:
-        return False
-    return False
 
 
 def _run_export_all() -> int:
-    root = _find_project_root()
+    root = _find_config_vault_for_path(Path.cwd())
     if root is None:
         print(
-            "Export requires __init__.gvim in the project root",
+            "Export requires a configured vault. Run 'gvim init' in the vault root.",
             file=sys.stderr,
         )
         return 1

@@ -1182,11 +1182,7 @@ class BlockEditorView(Gtk.Box):
                 continue
             if child.is_dir():
                 dirs.append(VaultEntry(path=child, label=f"{name}/", kind="dir"))
-            elif (
-                child.is_file()
-                and child.suffix == ".gvim"
-                and child.name != "__init__.gvim"
-            ):
+            elif child.is_file() and child.suffix == ".gvim":
                 files.append(VaultEntry(path=child, label=name, kind="file"))
         dirs.sort(key=lambda entry: entry.label.lower())
         files.sort(key=lambda entry: entry.label.lower())
