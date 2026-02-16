@@ -3,6 +3,5 @@
 *.svg
 *.html
 *.log
-*.gtkv
-*.docv
+*.gvim
 *.svg

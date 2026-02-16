@@ -308,7 +308,7 @@ def sample_document() -> BlockDocument:
                 kind="h1",
             ),
             TextBlock(
-                "Python blocks render to SVG via __gtkv__.renderer.\n"
+                "Python blocks render to SVG via __gvim__.renderer.\n"
                 "They are rendered at runtime for export.",
                 kind="body",
             ),

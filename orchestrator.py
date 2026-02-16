@@ -38,9 +38,9 @@ from block_view import BlockEditorView
 
 
 INSTALL_SH_URL = (
-    "https://raw.githubusercontent.com/ryangerardwilson/gtkv/main/install.sh"
+    "https://raw.githubusercontent.com/ryangerardwilson/gvim/main/install.sh"
 )
-APP_ID = "com.gtkv.block"
+APP_ID = "com.gvim.block"
 
 
 class BlockApp(Gtk.Application):
@@ -129,7 +129,7 @@ class Orchestrator:
         return app.run(gtk_args)
 
     def configure_window(self, window: Gtk.ApplicationWindow) -> None:
-        window.set_title("GTKV")
+        window.set_title("GVIM")
         window.set_default_size(960, 720)
 
         loading = LoadingScreen(self._ui_mode or "dark")
@@ -544,7 +544,7 @@ class Orchestrator:
         if document.path is not None:
             document_io.save(document.path, document)
             return True
-        print("No document path set; launch with a .docv filename", file=sys.stderr)
+        print("No document path set; launch with a .gvim filename", file=sys.stderr)
         return False
 
     def _export_current_html(self) -> bool:
@@ -876,14 +876,14 @@ def parse_args(
         nargs="?",
         const="__default__",
         help=(
-            "Export .docv to HTML (optional output path; without input, "
-            "export all .docv recursively from cwd)"
+            "Export .gvim to HTML (optional output path; without input, "
+            "export all .gvim recursively from cwd)"
         ),
     )
     parser.add_argument(
         "-q", action="store_true", dest="demo", help="Quickstart content"
     )
-    parser.add_argument("file", nargs="?", help=".docv document to open")
+    parser.add_argument("file", nargs="?", help=".gvim document to open")
     if hasattr(parser, "parse_known_intermixed_args"):
         args, gtk_args = parser.parse_known_intermixed_args(argv)
     else:
@@ -946,15 +946,15 @@ def _get_version() -> str:
 
 def _run_init() -> int:
     root = Path.cwd()
-    anchor = root / "__init__.docv"
+    anchor = root / "__init__.gvim"
     if anchor.exists() and not anchor.is_file():
-        print("__init__.docv exists and is not a file", file=sys.stderr)
+        print("__init__.gvim exists and is not a file", file=sys.stderr)
         return 1
     if not anchor.exists():
         try:
             document_io.save(anchor, BlockDocument([]))
         except OSError:
-            print("Failed to create __init__.docv", file=sys.stderr)
+            print("Failed to create __init__.gvim", file=sys.stderr)
             return 1
     added = config.add_vault(root)
     if added:
@@ -967,15 +967,15 @@ def _run_init() -> int:
 def _find_project_root() -> Path | None:
     current = Path.cwd()
     for candidate in [current, *current.parents]:
-        if (candidate / "__init__.docv").exists():
+        if (candidate / "__init__.gvim").exists():
             return candidate
     return None
 
 
 def _vault_has_docs(root: Path) -> bool:
     try:
-        for path in root.rglob("*.docv"):
-            if path.name == "__init__.docv":
+        for path in root.rglob("*.gvim"):
+            if path.name == "__init__.gvim":
                 continue
             return True
     except OSError:
@@ -987,13 +987,13 @@ def _run_export_all() -> int:
     root = _find_project_root()
     if root is None:
         print(
-            "Export requires __init__.docv in the project root",
+            "Export requires __init__.gvim in the project root",
             file=sys.stderr,
         )
         return 1
-    doc_paths = sorted(root.rglob("*.docv"))
+    doc_paths = sorted(root.rglob("*.gvim"))
     if not doc_paths:
-        print(f"No .docv files found under {root}", file=sys.stderr)
+        print(f"No .gvim files found under {root}", file=sys.stderr)
         return 1
     python_path = config.get_python_path()
     ui_mode = config.get_ui_mode() or "dark"
@@ -1007,7 +1007,7 @@ def _run_export(output_path: str, input_path: str | None) -> int:
     if not input_path:
         if output_path == "__default__":
             return _run_export_all()
-        print("Export requires a .docv input path", file=sys.stderr)
+        print("Export requires a .gvim input path", file=sys.stderr)
         return 1
     if output_path == "__default__" or not output_path:
         output_path = str(Path(input_path).with_suffix(".html"))

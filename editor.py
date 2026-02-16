@@ -26,7 +26,7 @@ def open_temp_editor(
     content: str, suffix: str, index: int, kind: str
 ) -> EditorSession | None:
     temp = tempfile.NamedTemporaryFile(
-        prefix="gtkv-block-", suffix=suffix, delete=False
+        prefix="gvim-block-", suffix=suffix, delete=False
     )
     temp_path = Path(temp.name)
     temp.write(content.encode("utf-8"))

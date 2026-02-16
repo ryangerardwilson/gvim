@@ -35,7 +35,7 @@ def render_python_image(
 
     render_hash = _hash_render(source, python_path, render_format)
 
-    with tempfile.TemporaryDirectory(prefix="gtkv-pyimage-") as temp_dir:
+    with tempfile.TemporaryDirectory(prefix="gvim-pyimage-") as temp_dir:
         temp_root = Path(temp_dir)
         output_path = temp_root / f"render.{render_format}"
         source_path = temp_root / "source.py"
@@ -75,7 +75,7 @@ def render_python_image(
 
 def _hash_render(source: str, python_path: str, render_format: str) -> str:
     digest = hashlib.sha256()
-    digest.update(b"gtkv-pyimage-v2")
+    digest.update(b"gvim-pyimage-v2")
     digest.update(python_path.encode("utf-8"))
     digest.update(render_format.encode("utf-8"))
     digest.update(source.encode("utf-8"))
@@ -108,14 +108,14 @@ def _build_runner_script(
         "    'savefig.transparent': True,\n"
         "})\n"
         f"sys.path.insert(0, {module_root!r})\n"
-        f"__gtkv__ = SimpleNamespace(renderer={output_path.as_posix()!r}, format={render_format!r})\n"
+        f"__gvim__ = SimpleNamespace(renderer={output_path.as_posix()!r}, format={render_format!r})\n"
         "import pyimg_api as _pyimg_api\n"
-        "_pyimg_api.__gtkv__ = __gtkv__\n"
+        "_pyimg_api.__gvim__ = __gvim__\n"
         "from pyimg_api import plot_coord, plot_func\n"
         f"_source = {source_path.as_posix()!r}\n"
         "with open(_source, 'r', encoding='utf-8') as _file:\n"
         "    _code = _file.read()\n"
-        "_globals = {'__gtkv__': __gtkv__, 'plot_coord': plot_coord, 'plot_func': plot_func}\n"
+        "_globals = {'__gvim__': __gvim__, 'plot_coord': plot_coord, 'plot_func': plot_func}\n"
         "exec(compile(_code, _source, 'exec'), _globals)\n"
     )
 

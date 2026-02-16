@@ -8,7 +8,7 @@ non-goals of the project, and why the current architecture exists.
 - Render a block-based GTK4 UI where each block owns its own rendering surface.
 - Keep the core GTK app focused on layout, navigation, and block orchestration.
 - Minimize internal editor logic and keep the codebase easy to refactor.
-- Persist documents as a text-based `.docv` file with block sources.
+- Persist documents as a text-based `.gvim` file with block sources.
 
 ## Non-goals
 - Inline image rendering inside text lines.
@@ -32,7 +32,7 @@ need to recreate Vim modes internally.
   - `block_registry.py` for block capabilities
   - `block_view.py` for GTK rendering + navigation
   - `document_io.py` for persistence routing
-  - `persistence_text.py` for text `.docv` load/save
+  - `persistence_text.py` for text `.gvim` load/save
   - `config.py` for user config (Python path + UI mode)
   - `py_runner.py` for Python render execution
   - `export_html.py` for HTML export
@@ -43,7 +43,7 @@ need to recreate Vim modes internally.
   - `three_template.py` for 3D block HTML boilerplate
   - `three.module.min.js` for bundled Three.js
   - `katex.min.js`, `katex.min.css`, `fonts/` for LaTeX rendering
-  - `completions_gtkv.bash` for shell completion
+  - `completions_gvim.bash` for shell completion
 
 ## Release + packaging workflow
 
@@ -54,12 +54,12 @@ workflow builds the bundle and publishes artifacts to GitHub Releases.
 ### `install.sh`
 Installer script that:
 - downloads the tagged release bundle or installs from a local tarball
-- installs into `~/.gtkv/app` and puts a launcher in `~/.gtkv/bin`
+- installs into `~/.gvim/app` and puts a launcher in `~/.gvim/bin`
 - optionally adds the bin directory to PATH
-- installs bash completion from `completions_gtkv.bash`
+- installs bash completion from `completions_gvim.bash`
 
 ### `_version.py`
-Single source of installed version for the CLI (`gtkv --version`). Updated
+Single source of installed version for the CLI (`gvim --version`). Updated
 during release packaging so the binary bundle reports the correct version.
 
 ## Components and single responsibility
@@ -75,13 +75,13 @@ Defines block types and the document structure.
 Renders the document as GTK blocks, overlays, and tracks selection/navigation.
 
 ### `persistence_text.py`
-Text-based `.docv` persistence (git-friendly).
+Text-based `.gvim` persistence (git-friendly).
 
 ### `py_runner.py`
 Runs Python render blocks and returns SVG output (mode-aware colors).
 
 ### `export_html.py`
-Exports `.docv` files to an HTML page with light/dark toggle.
+Exports `.gvim` files to an HTML page with light/dark toggle.
 
 ### `map_template.py`
 Leaflet map HTML boilerplate (theme-aware tiles).

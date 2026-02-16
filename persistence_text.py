@@ -1,4 +1,4 @@
-"""Text-based .docv persistence."""
+"""Text-based .gvim persistence."""
 
 from __future__ import annotations
 
@@ -14,7 +14,7 @@ from block_model import (
 )
 
 
-HEADER = "# GTKV v2"
+HEADER = "# GVIM v1"
 
 
 def load_document(path: Path) -> BlockDocument:

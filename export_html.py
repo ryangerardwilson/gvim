@@ -1,4 +1,4 @@
-"""HTML export for .docv documents."""
+"""HTML export for .gvim documents."""
 
 from __future__ import annotations
 
@@ -204,7 +204,7 @@ def _build_html(document: BlockDocument, python_path: str | None, ui_mode: str) 
         f'    <script src="{LEAFLET_JS_CDN}"></script>\n'
         "    <script>\n"
         f"      const themeDefault = '{ui_mode}';\n"
-        "      const themeStorageKey = 'gtkv-theme';\n"
+        "      const themeStorageKey = 'gvim-theme';\n"
         "      const root = document.documentElement;\n"
         "      const toggleButtons = document.querySelectorAll('.theme-toggle button');\n"
         "      const getStoredTheme = () => {\n"
@@ -350,7 +350,7 @@ def _render_pyimage_block(
 
 def _render_three_block(source: str, index: int) -> str:
     module_source = _escape_js(source)
-    canvas_id = f"gtkv-three-{index}"
+    canvas_id = f"gvim-three-{index}"
     return (
         '<section class="block block-three">'
         f'<canvas id="{canvas_id}"></canvas>'

@@ -17,7 +17,7 @@ def save(path: Path, document: BlockDocument) -> None:
     save_text(path, document)
 
 
-def coerce_docv_path(path: Path) -> Path:
-    if path.suffix == ".docv":
+def coerce_gvim_path(path: Path) -> Path:
+    if path.suffix == ".gvim":
         return path
-    return path.with_suffix(".docv")
+    return path.with_suffix(".gvim")

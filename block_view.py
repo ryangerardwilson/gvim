@@ -857,7 +857,7 @@ class BlockEditorView(Gtk.Box):
             path = self._vault_path
             if root is None or path is None:
                 self._vault_subtitle_label.set_text("")
-                empty_text = "No .docv files in this folder"
+                empty_text = "No .gvim files in this folder"
             else:
                 if path == root:
                     self._vault_subtitle_label.set_text("/")
@@ -866,7 +866,7 @@ class BlockEditorView(Gtk.Box):
                     self._vault_subtitle_label.set_text(f"/{relative}")
                 entries = self._collect_vault_entries(path)
                 if not entries:
-                    empty_text = "No .docv files in this folder"
+                    empty_text = "No .gvim files in this folder"
 
         self._vault_entries = entries
 
@@ -954,7 +954,7 @@ class BlockEditorView(Gtk.Box):
             self.show_status("Path must stay in vault", "error")
             return False
         target = self._vault_unique_path(target)
-        if target.suffix == ".docv":
+        if target.suffix == ".gvim":
             try:
                 target.parent.mkdir(parents=True, exist_ok=True)
                 document_io.save(target, BlockDocument([]))
@@ -1034,7 +1034,7 @@ class BlockEditorView(Gtk.Box):
         self._vault_clipboard_name = None
 
     def _vault_cut_storage_dir(self, root: Path) -> Path:
-        return root / ".gtkv_cut"
+        return root / ".gvim_cut"
 
     def _vault_unique_path(self, target: Path) -> Path:
         if not target.exists():
@@ -1157,8 +1157,8 @@ class BlockEditorView(Gtk.Box):
                 dirs.append(VaultEntry(path=child, label=f"{name}/", kind="dir"))
             elif (
                 child.is_file()
-                and child.suffix == ".docv"
-                and child.name != "__init__.docv"
+                and child.suffix == ".gvim"
+                and child.name != "__init__.gvim"
             ):
                 files.append(VaultEntry(path=child, label=name, kind="file"))
         dirs.sort(key=lambda entry: entry.label.lower())
@@ -1638,7 +1638,7 @@ class _ThreeBlockView(Gtk.Frame):
             return
 
         source = render_three_html(source, ui_mode).replace(
-            "__GTKV_THREE_SRC__", _three_module_uri()
+            "__GVIM_THREE_SRC__", _three_module_uri()
         )
         self._html = source
         self._build_view()
@@ -1958,7 +1958,7 @@ def _materialize_pyimage(
     if not rendered_data:
         return None
     cache_root = Path(os.environ.get("XDG_CACHE_HOME", Path.home() / ".cache"))
-    cache_dir = cache_root / "gtkv" / "pyimage"
+    cache_dir = cache_root / "gvim" / "pyimage"
     cache_dir.mkdir(parents=True, exist_ok=True)
     digest_source = rendered_hash or rendered_data
     digest = hashlib.sha256(digest_source.encode("utf-8")).hexdigest()[:16]

@@ -9,7 +9,7 @@ from pathlib import Path
 
 def get_config_dir() -> Path:
     root = Path(os.environ.get("XDG_CONFIG_HOME", Path.home() / ".config"))
-    return root / "gtkv"
+    return root / "gvim"
 
 
 def get_config_path() -> Path:

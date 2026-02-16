@@ -1,9 +1,9 @@
-# gtkv
+# gvim
 
-`gtkv` is a GTK4 block-based editor that keeps Vim as the editor. Text and code
+`gvim` is a GTK4 block-based editor that keeps Vim as the editor. Text and code
 live in separate blocks, and text blocks open in an external terminal Vim
 session for full editing power. Documents are stored as a git-friendly text
-`.docv` file. 3D and LaTeX blocks render with WebKitGTK.
+`.gvim` file. 3D and LaTeX blocks render with WebKitGTK.
 
 ---
 
@@ -25,30 +25,30 @@ session for full editing power. Documents are stored as a git-friendly text
 Grab the latest tagged release via the helper script:
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/ryangerardwilson/gtkv/main/install.sh | bash
+curl -fsSL https://raw.githubusercontent.com/ryangerardwilson/gvim/main/install.sh | bash
 ```
 
-The script drops the unpacked bundle into `~/.gtkv/app` and a shim in
-`~/.gtkv/bin`. It will attempt to append that directory to your `PATH` (unless
-you opt out). Once installed, run `gtkv -h` to confirm everything works.
+The script drops the unpacked bundle into `~/.gvim/app` and a shim in
+`~/.gvim/bin`. It will attempt to append that directory to your `PATH` (unless
+you opt out). Once installed, run `gvim -h` to confirm everything works.
 
 Installer flags of note:
 
 - `-v <x.y.z>`: install a specific tagged release (`v0.2.0`, etc.).
 - `-v` (no argument): print the latest GitHub release version.
 - `-u`: reinstall only if GitHub has something newer than your current local copy.
-- `-b /path/to/gtkv-linux-x64.tar.gz`: install from an already-downloaded archive.
+- `-b /path/to/gvim-linux-x64.tar.gz`: install from an already-downloaded archive.
 - `-h`: show installer usage.
 
-You can also download the `gtkv-linux-x64.tar.gz` artifact manually from the
+You can also download the `gvim-linux-x64.tar.gz` artifact manually from the
 releases page and run `install.sh --binary` if you prefer to manage the bundle
 yourself.
 
 ### From source
 
 ```bash
-git clone https://github.com/ryangerardwilson/gtkv.git
-cd gtkv
+git clone https://github.com/ryangerardwilson/gvim.git
+cd gvim
 python main.py
 ```
 
@@ -56,9 +56,9 @@ python main.py
 
 ## Usage
 
-- `gtkv` — open a new document.
-- `gtkv doc.docv` — open an existing document.
-- `gtkv init` — initialize a vault in the current directory.
+- `gvim` — open a new document.
+- `gvim doc.gvim` — open an existing document.
+- `gvim init` — initialize a vault in the current directory.
 - `,bn` — insert a normal text block.
 - `,bht` — insert a title block.
 - `,bh1` / `,bh2` / `,bh3` — insert heading blocks.
@@ -87,8 +87,8 @@ python main.py
 - `Escape` — return to document mode from vault mode.
 - `-v` — print installed version.
 - `-u` — upgrade to the latest release.
-- `-e [output.html] doc.docv` — export to HTML (defaults to same basename).
-- `-e` — export all `.docv` recursively from project root (requires `__init__.docv`).
+- `-e [output.html] doc.gvim` — export to HTML (defaults to same basename).
+- `-e` — export all `.gvim` recursively from project root (requires `__init__.gvim`).
 - `-q` — quickstart a new document with demo content.
 - `-h` — show CLI help.
 
@@ -117,30 +117,30 @@ Leader is `,` followed by a short token. Block commands are prefixed with `b`:
 ### Bash completion
 
 The installer drops a completion script into
-`${XDG_CONFIG_HOME:-~/.config}/bash_completion.d/gtkv` and adds a loader to
+`${XDG_CONFIG_HOME:-~/.config}/bash_completion.d/gvim` and adds a loader to
 `~/.bashrc` if needed.
 
 ---
 
 ## Vaults
 
-Use `gtkv init` to create a vault anchor (`__init__.docv`) and register the
+Use `gvim init` to create a vault anchor (`__init__.gvim`) and register the
 current directory. Press `,v` to open vault mode, navigate with `h/j/k/l`, and
 press `Escape` to return to document mode. In vault mode, press `,n` to create
-a new `.docv` file (with extension) or a new folder (no extension). If all
-registered vaults have no `.docv` files, the app opens in vault mode. In vault
+a new `.gvim` file (with extension) or a new folder (no extension). If all
+registered vaults have no `.gvim` files, the app opens in vault mode. In vault
 mode, `yy` copies, `dd` cuts, and `p` pastes into the current folder.
 
 ## Notes
 
 - Blocks are separate; there is no inline mixing.
 - Vim runs externally in your terminal; GTK stays focused on layout.
-- Documents are stored as text `.docv` files suitable for Git diffing.
-- 3D blocks store their JS source inside the `.docv` file.
-- Python render blocks execute via a configured Python path and must write to `__gtkv__.renderer`.
+- Documents are stored as text `.gvim` files suitable for Git diffing.
+- 3D blocks store their JS source inside the `.gvim` file.
+- Python render blocks execute via a configured Python path and must write to `__gvim__.renderer`.
 - Python render output is rendered at runtime (not embedded).
 - LaTeX blocks render via KaTeX in a WebKit view with local assets.
-- Image blocks are not supported in the text `.docv` format.
+- Image blocks are not supported in the text `.gvim` format.
 - HTML export uses CDN assets for Three.js and KaTeX, embeds Python renders as base64 SVG, and adds a light/dark toggle in the top-right.
 - Map blocks render GeoJSON via Leaflet with theme-aware tiles.
 
@@ -183,7 +183,7 @@ animate();
 ### Python render blocks
 
 Insert a block with `,bpy`. Configure the Python path on first launch. Your
-code must write an SVG to `__gtkv__.renderer`.
+code must write an SVG to `__gvim__.renderer`.
 
 Defaults applied by the renderer to match the active UI mode:
 
@@ -199,7 +199,7 @@ import matplotlib.pyplot as plt
 
 fig, ax = plt.subplots()
 ax.plot([0, 1, 2], [0, 1, 0.5])
-fig.savefig(__gtkv__.renderer, format="svg", dpi=200, transparent=True, bbox_inches="tight")
+fig.savefig(__gvim__.renderer, format="svg", dpi=200, transparent=True, bbox_inches="tight")
 ```
 
 ### LaTeX blocks
@@ -234,12 +234,12 @@ points.forEach(([lat, lon]) => {
 map.fitBounds(L.latLngBounds(points).pad(0.2));
 ```
 
-### `.docv` text format
+### `.gvim` text format
 
 Blocks are stored as plain text with block headers (SQLite is no longer used):
 
 ```
-# GTKV v2
+# GVIM v1
 ::text
 kind: body
 My notes...
@@ -263,14 +263,14 @@ format: svg
 Export a document to a self-contained HTML page (toggleable light/dark):
 
 ```bash
-gtkv -e [output.html] doc.docv
+gvim -e [output.html] doc.gvim
 ```
 
-Export all `.docv` documents under a project root (requires `__init__.docv` in
+Export all `.gvim` documents under a project root (requires `__init__.gvim` in
 that root):
 
 ```bash
-gtkv -e
+gvim -e
 ```
 
 - Three.js and KaTeX load from CDN to keep the HTML lean.
@@ -288,5 +288,5 @@ git tag v0.4.0
 git push origin v0.4.0
 ```
 
-GitHub Actions builds a source bundle (`gtkv-linux-x64.tar.gz`), updates
+GitHub Actions builds a source bundle (`gvim-linux-x64.tar.gz`), updates
 `_version.py`, and publishes the asset alongside the tagged release.

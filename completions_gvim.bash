@@ -1,4 +1,4 @@
-_gtkv_complete() {
+_gvim_complete() {
   local cur
   cur="${COMP_WORDS[COMP_CWORD]}"
   local prev
@@ -20,7 +20,7 @@ _gtkv_complete() {
         local opts
         opts=( $(compgen -W "init" -- "${cur}") )
         local files
-        files=( $(compgen -f -X '!*.docv' -- "${cur}") )
+        files=( $(compgen -f -X '!*.gvim' -- "${cur}") )
         COMPREPLY=( "${opts[@]}" "${files[@]}" )
       fi
       ;;
@@ -28,4 +28,4 @@ _gtkv_complete() {
   compopt -o filenames 2>/dev/null || true
 }
 
-complete -F _gtkv_complete gtkv
+complete -F _gvim_complete gvim

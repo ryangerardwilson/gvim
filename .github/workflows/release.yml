@@ -59,13 +59,13 @@ jobs:
               export LD_LIBRARY_PATH="/opt/py/python/lib:${LD_LIBRARY_PATH:-}"
               "$PYBIN" -m pip install -U pip
               echo "__version__ = \"${VERSION}\"" > _version.py
-              mkdir -p dist/gtkv
+              mkdir -p dist/gvim
               rsync -av --exclude '.git' --exclude '.github' --exclude 'dist' \
-                --include '/*.py' --exclude '*' /work/ dist/gtkv/
+                --include '/*.py' --exclude '*' /work/ dist/gvim/
               cp -a style.css three_template.py three.module.min.js latex_template.py \
                 map_template.py katex.min.js katex.min.css fonts _version.py \
-                AGENTS.md README.md completions_gtkv.bash dist/gtkv/
-              tar -C dist -czf gtkv-linux-x64.tar.gz gtkv
+                AGENTS.md README.md completions_gvim.bash dist/gvim/
+              tar -C dist -czf gvim-linux-x64.tar.gz gvim
 
             '
 
@@ -74,6 +74,6 @@ jobs:
         with:
           tag_name: ${{ env.TAG }}
           files: |
-            gtkv-linux-x64.tar.gz
+            gvim-linux-x64.tar.gz
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

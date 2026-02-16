@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-APP=gtkv
-REPO="ryangerardwilson/gtkv"
+APP=gvim
+REPO="ryangerardwilson/gvim"
 APP_HOME="$HOME/.${APP}"
 INSTALL_DIR="$APP_HOME/bin"
 APP_DIR="$APP_HOME/app"
@@ -176,7 +176,7 @@ fi
 cat > "$INSTALL_DIR/$APP" <<'EOF'
 #!/usr/bin/env bash
 set -euo pipefail
-APP=gtkv
+APP=gvim
 case "${1:-}" in
   -v|--version|-h|--help|-u|--upgrade)
     exec python3 "${HOME}/.${APP}/app/${APP}/main.py" "$@"
@@ -223,15 +223,15 @@ info "Run: ${APP} -h"
 if [[ -n "${BASH_VERSION:-}" ]]; then
   completion_dir="${XDG_CONFIG_HOME:-$HOME/.config}/bash_completion.d"
   mkdir -p "$completion_dir"
-  if [[ -f "${HOME}/.${APP}/app/${APP}/completions_gtkv.bash" ]]; then
-    cp "${HOME}/.${APP}/app/${APP}/completions_gtkv.bash" "$completion_dir/gtkv"
-    info "Installed bash completion to $completion_dir/gtkv"
+  if [[ -f "${HOME}/.${APP}/app/${APP}/completions_gvim.bash" ]]; then
+    cp "${HOME}/.${APP}/app/${APP}/completions_gvim.bash" "$completion_dir/gvim"
+    info "Installed bash completion to $completion_dir/gvim"
   fi
   if [[ -w "$HOME/.bashrc" ]]; then
-    if ! grep -Fq "bash_completion.d/gtkv" "$HOME/.bashrc" 2>/dev/null; then
-      printf '\n# GTKV bash completion\nif [ -r "%s/gtkv" ]; then\n  . "%s/gtkv"\nfi\n' \
+    if ! grep -Fq "bash_completion.d/gvim" "$HOME/.bashrc" 2>/dev/null; then
+      printf '\n# GVIM bash completion\nif [ -r "%s/gvim" ]; then\n  . "%s/gvim"\nfi\n' \
         "$completion_dir" "$completion_dir" >> "$HOME/.bashrc"
-      info "Added gtkv completion source to ~/.bashrc"
+      info "Added gvim completion source to ~/.bashrc"
     fi
   fi
 fi

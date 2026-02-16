@@ -48,6 +48,6 @@ def _save_fig(fig) -> None:
 
 def _get_renderer() -> str:
     try:
-        return __gtkv__.renderer  # type: ignore[name-defined]
+        return __gvim__.renderer  # type: ignore[name-defined]
     except Exception as exc:
-        raise RuntimeError("__gtkv__.renderer not available") from exc
+        raise RuntimeError("__gvim__.renderer not available") from exc
