@@ -178,7 +178,7 @@ cat > "$INSTALL_DIR/$APP" <<'EOF'
 set -euo pipefail
 APP=gvim
 case "${1:-}" in
-  -v|--version|-h|--help|-u|--upgrade)
+  init|-v|--version|-h|--help|-u|--upgrade)
     exec python3 "${HOME}/.${APP}/app/${APP}/main.py" "$@"
     ;;
 esac
