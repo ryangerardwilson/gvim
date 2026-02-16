@@ -58,6 +58,7 @@ class Orchestrator:
         self._ui_mode: str | None = None
         self._mode = "document"
         self._open_vault_on_start = False
+        self._pyimage_error_cache: dict[int, str] = {}
         self._leader_active = False
         self._leader_buffer = ""
         self._leader_start = 0.0
@@ -575,6 +576,13 @@ class Orchestrator:
             block.source, python_path, block.format, ui_mode="light"
         )
         error = dark.error or light.error
+        if error:
+            self._pyimage_error_cache[index] = error
+            self._inject_pyimage_error(index, error)
+        else:
+            if index in self._pyimage_error_cache:
+                del self._pyimage_error_cache[index]
+            self._clear_pyimage_error(index)
         document.set_python_image_render(
             index,
             rendered_data_dark=dark.rendered_data,
@@ -584,6 +592,43 @@ class Orchestrator:
             last_error=error,
         )
         view.set_document(document)
+
+    def _inject_pyimage_error(self, index: int, error: str) -> None:
+        document = self._state.document
+        if document is None:
+            return
+        if index < 0 or index >= len(document.blocks):
+            return
+        block = document.blocks[index]
+        if not isinstance(block, PythonImageBlock):
+            return
+        header = f"\"\"\"\nLAST RUNTIME ERROR: {error}\n\"\"\"\n"
+        source = self._strip_pyimage_error(block.source)
+        document.set_python_image_block(index, f"{header}{source}")
+
+    def _clear_pyimage_error(self, index: int) -> None:
+        document = self._state.document
+        if document is None:
+            return
+        if index < 0 or index >= len(document.blocks):
+            return
+        block = document.blocks[index]
+        if not isinstance(block, PythonImageBlock):
+            return
+        source = self._strip_pyimage_error(block.source)
+        if source != block.source:
+            document.set_python_image_block(index, source)
+
+    @staticmethod
+    def _strip_pyimage_error(source: str) -> str:
+        prefix = '"""\nLAST RUNTIME ERROR:'
+        if not source.startswith(prefix):
+            return source
+        end = source.find('"""', len(prefix))
+        if end == -1:
+            return source
+        trimmed = source[end + 3 :]
+        return trimmed.lstrip("\n")
 
     def _render_python_images_on_start(self) -> None:
         document = self._state.document

@@ -340,7 +340,11 @@ def _prepend_guidance(kind: str, content: str) -> str:
     else:
         guidance = _THREE_GUIDANCE
     stripped = content.lstrip()
+    if kind == "pyimage" and "LAST RUNTIME ERROR:" in content:
+        return content
     if stripped.startswith(guidance.strip()):
+        return content
+    if kind == "pyimage" and guidance.strip() in content:
         return content
     if kind == "pyimage" and stripped.startswith(_PY_SAMPLE.strip()):
         return guidance

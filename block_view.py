@@ -1673,7 +1673,7 @@ class _PyImageBlockView(Gtk.Frame):
 
         label_text = "Python render pending"
         if block.last_error:
-            label_text = f"Python render error: {block.last_error}"
+            label_text = "Python render error (see editor)"
         label = Gtk.Label(label=label_text)
         _apply_block_padding(label)
         self.set_child(label)
