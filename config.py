@@ -32,20 +32,6 @@ def save_config(config: dict) -> None:
     path.write_text(json.dumps(config, indent=2, sort_keys=True), encoding="utf-8")
 
 
-def get_python_path() -> str | None:
-    config = load_config()
-    value = config.get("python_path")
-    if isinstance(value, str) and value.strip():
-        return value.strip()
-    return None
-
-
-def set_python_path(python_path: str) -> None:
-    config = load_config()
-    config["python_path"] = python_path
-    save_config(config)
-
-
 def get_ui_mode() -> str | None:
     config = load_config()
     value = config.get("mode")

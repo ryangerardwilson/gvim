@@ -18,6 +18,9 @@ session for full editing power. Documents are stored as a git-friendly text
 - Bundled: `three.module.min.js` is included for 3D blocks.
 - Bundled: KaTeX assets (`katex.min.js`, `katex.min.css`, `fonts/`) for LaTeX.
 
+On supported Linux distros, `install.sh` installs the required system libraries
+for PyGObject and GTK4 automatically.
+
 ## Installation
 
 ### Prebuilt binary (Linux x86_64)
@@ -31,6 +34,9 @@ curl -fsSL https://raw.githubusercontent.com/ryangerardwilson/gvim/main/install.
 The script drops the unpacked bundle into `~/.gvim/app` and a shim in
 `~/.gvim/bin`. It will attempt to append that directory to your `PATH` (unless
 you opt out). Once installed, run `gvim -h` to confirm everything works.
+
+The installer also creates a dedicated venv at `~/.gvim/venv`, installs
+PyGObject via pip, and wires the launcher to always use that venv.
 
 Installer flags of note:
 
@@ -51,6 +57,9 @@ git clone https://github.com/ryangerardwilson/gvim.git
 cd gvim
 python main.py
 ```
+
+System dependencies are required for PyGObject and GTK4. The installer uses
+`sudo` to install them for supported distros.
 
 ---
 
@@ -102,7 +111,6 @@ Example `config.json` with keymap overrides:
 
 ```json
 {
-  "python_path": "/usr/bin/python3",
   "mode": "dark",
   "vaults": ["/path/to/vault"],
   "keymap": {

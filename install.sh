@@ -6,6 +6,7 @@ REPO="ryangerardwilson/gvim"
 APP_HOME="$HOME/.${APP}"
 INSTALL_DIR="$APP_HOME/bin"
 APP_DIR="$APP_HOME/app"
+VENV_DIR="$APP_HOME/venv"
 FILENAME="${APP}-linux-x64.tar.gz"
 
 MUTED='\033[0;2m'
@@ -29,6 +30,67 @@ EOF
 
 info() { echo -e "${MUTED}$1${NC}"; }
 die() { echo -e "${RED}$1${NC}" >&2; exit 1; }
+
+require_sudo() {
+  if [[ $EUID -ne 0 ]]; then
+    command -v sudo >/dev/null 2>&1 || die "sudo is required to install system packages"
+  fi
+}
+
+install_system_deps() {
+  [[ -f /etc/os-release ]] || die "Unsupported OS: missing /etc/os-release"
+  . /etc/os-release
+  case "${ID}" in
+    ubuntu|debian)
+      require_sudo
+      sudo apt-get update
+      sudo apt-get install -y \
+        python3 \
+        python3-venv \
+        python3-gi \
+        gir1.2-gtk-4.0 \
+        libgirepository1.0-dev \
+        gcc \
+        pkg-config \
+        libcairo2-dev
+      ;;
+    fedora)
+      require_sudo
+      sudo dnf install -y \
+        python3 \
+        python3-gobject \
+        gtk4 \
+        gobject-introspection-devel \
+        gcc \
+        pkgconf-pkg-config \
+        cairo-gobject-devel
+      ;;
+    arch)
+      require_sudo
+      sudo pacman -S --noconfirm \
+        python \
+        python-gobject \
+        gtk4 \
+        gobject-introspection \
+        gcc \
+        pkgconf \
+        cairo
+      ;;
+    *)
+      die "Unsupported distro for system deps: ${ID}"
+      ;;
+  esac
+}
+
+setup_venv() {
+  command -v python3 >/dev/null 2>&1 || die "python3 is required"
+  rm -rf "$VENV_DIR"
+  python3 -m venv "$VENV_DIR"
+  "$VENV_DIR/bin/python" -m pip install --upgrade pip setuptools wheel
+  "$VENV_DIR/bin/pip" install -r "$APP_DIR/$APP/requirements.txt"
+  "$VENV_DIR/bin/python" -c "import gi; gi.require_version('Gtk','4.0')"
+  "$VENV_DIR/bin/python" -c "import numpy, matplotlib, pandas"
+}
 
 requested_version=${VERSION:-}
 bundle_path=""
@@ -173,39 +235,17 @@ else
   installed_label="$version_label"
 fi
 
+install_system_deps
+setup_venv
+
 cat > "$INSTALL_DIR/$APP" <<'EOF'
 #!/usr/bin/env bash
 set -euo pipefail
 APP=gvim
-CONFIG_PATH="${XDG_CONFIG_HOME:-$HOME/.config}/${APP}/config.json"
-PYTHON_BIN="python3"
-PYTHON_FALLBACK=true
-if [[ -f "$CONFIG_PATH" ]]; then
-  resolved=$(CONFIG_PATH="$CONFIG_PATH" python3 - <<'PY'
-import json
-import os
-import sys
-
-path = os.environ.get("CONFIG_PATH")
-if not path:
-    sys.exit(0)
-try:
-    with open(path, "r", encoding="utf-8") as fh:
-        data = json.load(fh)
-except Exception:
-    sys.exit(0)
-value = data.get("python_path")
-if isinstance(value, str) and value.strip():
-    print(value.strip())
-PY
-  )
-  if [[ -n "${resolved:-}" && -x "${resolved}" ]]; then
-    PYTHON_BIN="$resolved"
-    PYTHON_FALLBACK=false
-  fi
-fi
-if [[ "$PYTHON_FALLBACK" == true ]]; then
-  exec "$PYTHON_BIN" "${HOME}/.${APP}/app/${APP}/main.py" "$@"
+PYTHON_BIN="${HOME}/.${APP}/venv/bin/python"
+if [[ ! -x "$PYTHON_BIN" ]]; then
+  echo "GVIM venv missing. Reinstall with install.sh." >&2
+  exit 1
 fi
 case "${1:-}" in
   init|-v|--version|-h|--help|-u|--upgrade)

@@ -84,11 +84,7 @@ class Orchestrator:
         self._demo = options.demo
 
         document_path = Path(options.file).expanduser() if options.file else None
-        self._python_path = config.get_python_path()
-        if not self._python_path:
-            self._python_path = _prompt_python_path_cli()
-            if self._python_path:
-                config.set_python_path(self._python_path)
+        self._python_path = _get_venv_python()
 
         self._ui_mode = config.get_ui_mode()
         if not self._ui_mode:
@@ -742,18 +738,11 @@ def _load_css(css_path: Path, ui_mode: str) -> None:
     )
 
 
-def _prompt_python_path_cli() -> str | None:
-    try:
-        text = input("Python path for rendering (leave blank to skip): ").strip()
-    except EOFError:
-        return None
-    if not text:
-        return None
-    if not os.path.exists(text):
-        return None
-    if not os.access(text, os.X_OK):
-        return None
-    return text
+def _get_venv_python() -> str | None:
+    venv_python = Path.home() / ".gvim" / "venv" / "bin" / "python"
+    if venv_python.exists() and os.access(venv_python, os.X_OK):
+        return str(venv_python)
+    return None
 
 
 
@@ -900,7 +889,7 @@ def _run_export_all() -> int:
     if not doc_paths:
         print(f"No .gvim files found under {root}", file=sys.stderr)
         return 1
-    python_path = config.get_python_path()
+    python_path = _get_venv_python()
     ui_mode = config.get_ui_mode() or "dark"
     for doc_path in doc_paths:
         document = document_io.load(doc_path)
@@ -921,7 +910,7 @@ def _run_export(output_path: str, input_path: str | None) -> int:
         print(f"Missing document: {doc_path}", file=sys.stderr)
         return 1
     document = document_io.load(doc_path)
-    python_path = config.get_python_path()
+    python_path = _get_venv_python()
     ui_mode = config.get_ui_mode() or "dark"
     export_document(document, Path(output_path).expanduser(), python_path, ui_mode)
     return 0
