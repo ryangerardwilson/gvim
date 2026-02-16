@@ -223,6 +223,19 @@ window {
   border-color: var(--vault-entry-focus);
 }
 
+.loading-overlay {
+  background: var(--loading-background);
+  border-radius: 18px;
+  padding: 24px;
+}
+
+.loading-ascii {
+  font-family: "JetBrains Mono", monospace;
+  font-size: var(--loading-ascii-size, 12px);
+  color: var(--loading-ascii-color);
+}
+
+
 .vault-entry placeholder {
   color: var(--vault-entry-placeholder);
 }

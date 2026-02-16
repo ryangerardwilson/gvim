@@ -19,6 +19,7 @@ from gi.repository import Gdk, GLib, Gtk  # type: ignore[import-not-found, attr-
 
 import actions
 import config
+from loading_screen import LoadingScreen
 import document_io
 import editor
 import py_runner
@@ -61,6 +62,8 @@ class Orchestrator:
         self._open_vault_on_start = False
         self._pyimage_error_cache: dict[int, str] = {}
         self._pyimage_render_tokens: dict[int, int] = {}
+        self._startup_loading: LoadingScreen | None = None
+        self._startup_pyimage_pending: set[int] = set()
         self._leader_active = False
         self._leader_buffer = ""
         self._leader_start = 0.0
@@ -129,6 +132,10 @@ class Orchestrator:
         window.set_title("GTKV")
         window.set_default_size(960, 720)
 
+        loading = LoadingScreen(self._ui_mode or "dark")
+        self._startup_loading = loading
+        window.set_child(loading.container)
+
         document = self._state.document
         if document is None:
             document = BlockDocument([])
@@ -137,7 +144,10 @@ class Orchestrator:
         view: BlockEditorView = BlockEditorView(self._ui_mode or "dark")
         view.set_document(document)
         self._state.view = view
+        self._prime_startup_loading(document)
         self._render_python_images_on_start()
+        loading.attach_content(view)
+        self._finish_startup_loading_if_ready()
         if self._open_vault_on_start:
             self._open_vault_on_start = False
             self._open_vault_mode()
@@ -570,7 +580,8 @@ class Orchestrator:
                 rendered_hash_light=None,
                 last_error="Python path not configured",
             )
-            view.set_document(document)
+            view.reload_media_at(index)
+            self._mark_startup_pyimage_done(index)
             return
 
         dark = py_runner.render_python_image(
@@ -652,6 +663,7 @@ class Orchestrator:
             last_error=error,
         )
         view.reload_media_at(index)
+        self._mark_startup_pyimage_done(index)
 
     def _inject_pyimage_error(self, index: int, error: str) -> None:
         document = self._state.document
@@ -696,7 +708,30 @@ class Orchestrator:
             return
         for index, block in enumerate(document.blocks):
             if isinstance(block, PythonImageBlock):
-                self._render_python_image(index)
+                self._start_python_image_render(index)
+
+    def _prime_startup_loading(self, document: BlockDocument) -> None:
+        self._startup_pyimage_pending = {
+            index
+            for index, block in enumerate(document.blocks)
+            if isinstance(block, PythonImageBlock)
+        }
+        if not self._startup_pyimage_pending:
+            GLib.idle_add(self._finish_startup_loading_if_ready)
+
+    def _mark_startup_pyimage_done(self, index: int) -> None:
+        if index in self._startup_pyimage_pending:
+            self._startup_pyimage_pending.discard(index)
+            self._finish_startup_loading_if_ready()
+
+    def _finish_startup_loading_if_ready(self) -> bool:
+        if self._startup_loading is None:
+            return False
+        if self._startup_pyimage_pending:
+            return False
+        self._startup_loading.finish_when_ready()
+        self._startup_loading = None
+        return False
 
 
 def _load_css(css_path: Path, ui_mode: str) -> None:
@@ -768,6 +803,11 @@ def _load_css(css_path: Path, ui_mode: str) -> None:
     variables += f"  --vault-entry-text: {palette.vault_entry_text};\n"
     variables += f"  --vault-entry-placeholder: {palette.vault_entry_placeholder};\n"
     variables += f"  --vault-entry-focus: {palette.vault_entry_focus};\n"
+    variables += f"  --loading-background: {palette.loading_background};\n"
+    variables += f"  --loading-rain-primary: {palette.loading_rain_primary};\n"
+    variables += f"  --loading-rain-secondary: {palette.loading_rain_secondary};\n"
+    variables += f"  --loading-ascii-color: {palette.loading_ascii};\n"
+    variables += f"  --loading-ascii-size: {font.loading_ascii};\n"
     variables += f"  --status-background: {palette.status_background};\n"
     variables += f"  --status-border: {palette.status_border};\n"
     variables += f"  --status-text-color: {palette.status_text};\n"
@@ -807,6 +847,7 @@ def _prompt_python_path_cli() -> str | None:
     if not os.access(text, os.X_OK):
         return None
     return text
+
 
 
 def _prompt_ui_mode_cli() -> str | None:

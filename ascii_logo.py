@@ -1,0 +1,5 @@
+"""ASCII logo for the loading screen."""
+
+ASCII_LOGO = """
+GTKV
+"""

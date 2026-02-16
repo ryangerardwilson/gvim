@@ -59,6 +59,12 @@ class colors:
         vault_entry_placeholder = "#8f8f8f"
         vault_entry_focus = "rgba(255, 255, 255, 0.18)"
 
+        # Loading overlay
+        loading_background = "#060b08"
+        loading_rain_primary = "#e6e6e6"
+        loading_rain_secondary = "#bdbdbd"
+        loading_ascii = "#f0f0f0"
+
         # Status bar (GTK)
         status_background = "rgba(12, 12, 12, 0.95)"
         status_border = "rgba(255, 255, 255, 0.06)"
@@ -158,6 +164,12 @@ class colors:
         vault_entry_placeholder = "#777777"
         vault_entry_focus = "rgba(0, 0, 0, 0.2)"
 
+        # Loading overlay
+        loading_background = "#f4faf7"
+        loading_rain_primary = "#2b2b2b"
+        loading_rain_secondary = "#6b6b6b"
+        loading_ascii = "#1f1f1f"
+
         # Status bar (GTK)
         status_background = "rgba(245, 245, 245, 0.96)"
         status_border = "rgba(0, 0, 0, 0.06)"
@@ -229,6 +241,7 @@ class font:
     vault_row = "12px"
     vault_empty = "12px"
     status = "11px"
+    loading_ascii = "12px"
 
     # Export HTML sizes
     export_title = "28px"
