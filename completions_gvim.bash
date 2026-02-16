@@ -17,11 +17,7 @@ _gvim_complete() {
       if [[ "${prev}" == "-e" || "${prev}" == "--export" ]]; then
         COMPREPLY=( $(compgen -f -- "${cur}") )
       else
-        local opts
-        opts=( $(compgen -W "init" -- "${cur}") )
-        local files
-        files=( $(compgen -f -X '!*.gvim' -- "${cur}") )
-        COMPREPLY=( "${opts[@]}" "${files[@]}" )
+        COMPREPLY=( $(compgen -f -X '!*.gvim' -- "${cur}") )
       fi
       ;;
   esac
