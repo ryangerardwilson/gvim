@@ -181,7 +181,7 @@ CONFIG_PATH="${XDG_CONFIG_HOME:-$HOME/.config}/${APP}/config.json"
 PYTHON_BIN="python3"
 PYTHON_FALLBACK=true
 if [[ -f "$CONFIG_PATH" ]]; then
-  resolved=$(python3 - <<'PY'
+  resolved=$(CONFIG_PATH="$CONFIG_PATH" python3 - <<'PY'
 import json
 import os
 import sys
