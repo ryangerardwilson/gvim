@@ -22,6 +22,11 @@ document layout and navigation across blocks, while Vim runs in a separate
 terminal against temporary files. This keeps the UI simple and eliminates the
 need to recreate Vim modes internally.
 
+## Vault model
+Vaults are configured directories stored in user config (no on-disk marker
+files). The app treats the configured vault list as the source of truth for
+launching, browsing, and export scope.
+
 ## Preferred project layout (flat)
 - Keep the repo flat at the root; avoid deep package trees for core modules.
 - Use direct, single-purpose modules:

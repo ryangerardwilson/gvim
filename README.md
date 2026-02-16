@@ -58,7 +58,7 @@ python main.py
 
 - `gvim` — open a new document.
 - `gvim doc.gvim` — open an existing document.
-- `gvim init` — initialize a vault in the current directory.
+- `gvim init` — register the current directory as a vault.
 - `,bn` — insert a normal text block.
 - `,bht` — insert a title block.
 - `,bh1` / `,bh2` / `,bh3` — insert heading blocks.
@@ -88,7 +88,7 @@ python main.py
 - `-v` — print installed version.
 - `-u` — upgrade to the latest release.
 - `-e [output.html] doc.gvim` — export to HTML (defaults to same basename).
-- `-e` — export all `.gvim` recursively from project root (requires `__init__.gvim`).
+- `-e` — export all `.gvim` recursively from the current vault.
 - `-q` — quickstart a new document with demo content.
 - `-h` — show CLI help.
 
@@ -124,12 +124,13 @@ The installer drops a completion script into
 
 ## Vaults
 
-Use `gvim init` to create a vault anchor (`__init__.gvim`) and register the
-current directory. Press `,v` to open vault mode, navigate with `h/j/k/l`, and
-press `Escape` to return to document mode. In vault mode, press `,n` to create
-a new `.gvim` file (with extension) or a new folder (no extension). If all
-registered vaults have no `.gvim` files, the app opens in vault mode. In vault
-mode, `yy` copies, `dd` cuts, and `p` pastes into the current folder.
+Vaults are registered directories stored in your config. Use `gvim init` to
+register the current directory. Press `,v` to open vault mode, navigate with
+`h/j/k/l`, and press `Escape` to return to document mode. In vault mode, press
+`,n` to create a new `.gvim` file (with extension) or a new folder (no
+extension). If you launch without a file and have vaults configured, the app
+opens in vault mode. In vault mode, `yy` copies, `dd` cuts, and `p` pastes into
+the current folder.
 
 ## Notes
 
@@ -266,8 +267,7 @@ Export a document to a self-contained HTML page (toggleable light/dark):
 gvim -e [output.html] doc.gvim
 ```
 
-Export all `.gvim` documents under a project root (requires `__init__.gvim` in
-that root):
+Export all `.gvim` documents under the current vault:
 
 ```bash
 gvim -e
