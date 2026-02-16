@@ -7,7 +7,6 @@ import threading
 import os
 import subprocess
 import sys
-import time
 from pathlib import Path
 from typing import Sequence
 
@@ -19,6 +18,7 @@ from gi.repository import Gdk, GLib, Gtk  # type: ignore[import-not-found, attr-
 
 import actions
 import config
+import keymap
 from loading_screen import LoadingScreen
 import document_io
 import editor
@@ -58,6 +58,7 @@ class Orchestrator:
         self._state = AppState()
         self._python_path: str | None = None
         self._ui_mode: str | None = None
+        self._keymap = keymap.load_keymap()
         self._mode = "document"
         self._open_vault_on_start = False
         self._active_vault_root: Path | None = None
@@ -65,13 +66,6 @@ class Orchestrator:
         self._pyimage_render_tokens: dict[int, int] = {}
         self._startup_loading: LoadingScreen | None = None
         self._startup_pyimage_pending: set[int] = set()
-        self._leader_active = False
-        self._leader_buffer = ""
-        self._leader_start = 0.0
-        self._delete_pending = False
-        self._delete_start = 0.0
-        self._yank_pending = False
-        self._yank_start = 0.0
         self._demo = False
 
     def run(self, argv: Sequence[str] | None = None) -> int:
@@ -144,7 +138,7 @@ class Orchestrator:
             document = BlockDocument([])
             self._state.document = document
 
-        view: BlockEditorView = BlockEditorView(self._ui_mode or "dark")
+        view: BlockEditorView = BlockEditorView(self._ui_mode or "dark", self._keymap)
         view.set_document(document)
         self._state.view = view
         self._prime_startup_loading(document)
@@ -168,7 +162,7 @@ class Orchestrator:
             return False
 
         if self._mode == "vault":
-            action = self._state.view.handle_vault_key(keyval)
+            action = self._state.view.handle_vault_key(keyval, state)
             if action.opened_path is not None:
                 self._open_document_path(action.opened_path)
                 self._close_vault_mode()
@@ -178,56 +172,69 @@ class Orchestrator:
                 self._toggle_ui_mode()
             return action.handled
 
-        if self._state.view.handle_help_key(keyval):
+        if self._state.view.handle_help_key(keyval, state):
             return True
 
         return self._handle_doc_keys(keyval, state)
 
     def _handle_doc_keys(self, keyval, state) -> bool:
         if self._state.view is not None and self._state.view.toc_drill_active():
-            return self._state.view.handle_toc_drill_key(keyval)
-        if self._leader_active:
-            if self._handle_leader_keys(keyval, state):
+            return self._state.view.handle_toc_drill_key(keyval, state)
+        token = keymap.event_to_token(keyval, state)
+        if token is None:
+            return False
+        action, handled = self._keymap.match("document", token)
+        if not handled:
+            return False
+        if action is None:
+            return True
+        return self._dispatch_doc_action(action)
+
+    def _dispatch_doc_action(self, action: str) -> bool:
+        if action == "move_down":
+            return actions.move_selection(self._state, 1)
+        if action == "move_up":
+            return actions.move_selection(self._state, -1)
+        if action == "move_block_down":
+            return actions.move_block(self._state, 1)
+        if action == "move_block_up":
+            return actions.move_block(self._state, -1)
+        if action == "first_block":
+            return actions.select_first(self._state)
+        if action == "last_block":
+            return actions.select_last(self._state)
+        if action == "open_editor":
+            return self._open_selected_block_editor()
+        if action == "quit_no_save":
+            self._quit()
+            return True
+        if action == "save":
+            if self._save_document():
+                self._show_status("Saved", "success")
+            else:
+                self._show_status("Save failed", "error")
+            return True
+        if action == "export_html":
+            if self._export_current_html():
+                self._show_status("Exported HTML", "success")
+            else:
+                self._show_status("Export failed", "error")
+            return True
+        if action == "save_and_exit":
+            if self._save_document():
+                self._show_status("Saved", "success")
+                self._quit()
                 return True
-        if self._handle_delete_keys(keyval, state):
+            self._show_status("Save failed", "error")
             return True
-        if self._handle_yank_keys(keyval, state):
+        if action == "exit_no_save":
+            self._quit()
             return True
-        if self._handle_leader_keys(keyval, state):
-            return True
-        if keyval in (ord("?"), Gdk.KEY_question):
+        if action == "help_toggle":
             if self._state.view is not None:
                 self._state.view.toggle_help()
             return True
-        if state & Gdk.ModifierType.CONTROL_MASK:
-            if keyval in (ord("s"), ord("S")):
-                if self._save_document():
-                    self._show_status("Saved", "success")
-                else:
-                    self._show_status("Save failed", "error")
-                return True
-            if keyval in (ord("e"), ord("E")):
-                if self._export_current_html():
-                    self._show_status("Exported HTML", "success")
-                else:
-                    self._show_status("Export failed", "error")
-                return True
-            if keyval in (ord("t"), ord("T")):
-                if self._save_document():
-                    self._show_status("Saved", "success")
-                    self._quit()
-                    return True
-                self._show_status("Save failed", "error")
-                return True
-            if keyval in (ord("x"), ord("X")):
-                self._quit()
-                return True
-            if keyval in (ord("j"), ord("J")):
-                return actions.move_block(self._state, 1)
-            if keyval in (ord("k"), ord("K")):
-                return actions.move_block(self._state, -1)
-
-        if keyval in (ord("p"), ord("P")):
+        if action == "paste_block":
             if self._state.clipboard_block is None:
                 self._show_status("Nothing to paste", "error")
                 return True
@@ -236,55 +243,7 @@ class Orchestrator:
             else:
                 self._show_status("Paste failed", "error")
             return True
-
-        if keyval in (ord("j"), ord("J"), Gdk.KEY_Down):
-            actions.move_selection(self._state, 1)
-            self._state.last_doc_key = keyval
-            return True
-
-        if keyval in (ord("k"), ord("K"), Gdk.KEY_Up):
-            actions.move_selection(self._state, -1)
-            self._state.last_doc_key = keyval
-            return True
-
-        if keyval in (ord("g"), ord("G")):
-            if keyval == ord("G"):
-                actions.select_last(self._state)
-                self._state.last_doc_key = None
-                return True
-            if self._state.last_doc_key == ord("g"):
-                actions.select_first(self._state)
-                self._state.last_doc_key = None
-                return True
-            self._state.last_doc_key = ord("g")
-            return True
-
-        if keyval in (Gdk.KEY_Return, Gdk.KEY_KP_Enter):
-            return self._open_selected_block_editor()
-
-        if keyval in (ord("q"), ord("Q")):
-            self._quit()
-            return True
-
-        self._state.last_doc_key = None
-        return False
-
-    def _handle_delete_keys(self, keyval, state) -> bool:
-        if state & Gdk.ModifierType.CONTROL_MASK:
-            if self._delete_pending:
-                self._delete_pending = False
-            return False
-
-        now = time.monotonic()
-        if self._delete_pending and now - self._delete_start > 1.25:
-            self._delete_pending = False
-
-        if keyval in (ord("d"), ord("D")):
-            if not self._delete_pending:
-                self._delete_pending = True
-                self._delete_start = now
-                return True
-            self._delete_pending = False
+        if action == "delete_block":
             deleted = actions.delete_selected_block(self._state)
             if deleted is None:
                 self._show_status("Nothing to delete", "error")
@@ -292,27 +251,7 @@ class Orchestrator:
             self._state.clipboard_block = deleted
             self._show_status("Deleted block", "success")
             return True
-
-        if self._delete_pending:
-            self._delete_pending = False
-        return False
-
-    def _handle_yank_keys(self, keyval, state) -> bool:
-        if state & Gdk.ModifierType.CONTROL_MASK:
-            if self._yank_pending:
-                self._yank_pending = False
-            return False
-
-        now = time.monotonic()
-        if self._yank_pending and now - self._yank_start > 1.25:
-            self._yank_pending = False
-
-        if keyval in (ord("y"), ord("Y")):
-            if not self._yank_pending:
-                self._yank_pending = True
-                self._yank_start = now
-                return True
-            self._yank_pending = False
+        if action == "yank_block":
             yanked = actions.yank_selected_block(self._state)
             if yanked is None:
                 self._show_status("Nothing to yank", "error")
@@ -320,93 +259,47 @@ class Orchestrator:
             self._state.clipboard_block = yanked
             self._show_status("Yanked block", "success")
             return True
-
-        if self._yank_pending:
-            self._yank_pending = False
-        return False
-
-    def _handle_leader_keys(self, keyval, state) -> bool:
-        if state & Gdk.ModifierType.CONTROL_MASK:
-            return False
-        if keyval == ord(",") and not self._leader_active:
-            self._leader_active = True
-            self._leader_buffer = ""
-            self._leader_start = time.monotonic()
-            return True
-        if not self._leader_active:
-            return False
-        if time.monotonic() - self._leader_start > 2.0:
-            self._leader_active = False
-            self._leader_buffer = ""
-            return False
-        if keyval == Gdk.KEY_Escape:
-            self._leader_active = False
-            self._leader_buffer = ""
-            return True
-        if 32 <= keyval <= 126:
-            self._leader_buffer += chr(keyval)
-        else:
-            return True
-
-        if self._leader_buffer == "j":
-            self._leader_active = False
-            return actions.select_last(self._state)
-        if self._leader_buffer == "k":
-            self._leader_active = False
-            return actions.select_first(self._state)
-        if self._leader_buffer == "bjs":
-            self._leader_active = False
-            return self._insert_three_block()
-        if self._leader_buffer == "bpy":
-            self._leader_active = False
-            return self._insert_python_image_block()
-        if self._leader_buffer == "bltx":
-            self._leader_active = False
-            return self._insert_latex_block()
-        if self._leader_buffer == "bmap":
-            self._leader_active = False
-            return self._insert_map_block()
-        if self._leader_buffer == "bht":
-            self._leader_active = False
-            return actions.insert_text_block(self._state, kind="title")
-        if self._leader_buffer == "bh1":
-            self._leader_active = False
-            return actions.insert_text_block(self._state, kind="h1")
-        if self._leader_buffer == "bh2":
-            self._leader_active = False
-            return actions.insert_text_block(self._state, kind="h2")
-        if self._leader_buffer == "bh3":
-            self._leader_active = False
-            return actions.insert_text_block(self._state, kind="h3")
-        if self._leader_buffer == "bn":
-            self._leader_active = False
-            return actions.insert_text_block(self._state, kind="body")
-        if self._leader_buffer == "bi":
-            self._leader_active = False
-            return actions.insert_toc_block(self._state)
-        if self._leader_buffer == "i":
-            self._leader_active = False
-            if self._state.document is None or self._state.view is None:
-                return False
-            toc_exists = any(
-                isinstance(block, TextBlock) and block.kind == "toc"
-                for block in self._state.document.blocks
-            )
-            if not toc_exists:
-                insert_at = self._state.view.get_selected_index()
-                self._state.document.insert_block_after(
-                    insert_at, TextBlock("", kind="toc")
-                )
-                self._state.view.set_document(self._state.document)
-            self._state.view.open_toc_drill(self._state.document)
-            return True
-        if self._leader_buffer == "m":
-            self._leader_active = False
+        if action == "toggle_theme":
             self._toggle_ui_mode()
             return True
-        if self._leader_buffer == "v":
-            self._leader_active = False
+        if action == "open_vault":
             return self._open_vault_mode()
+        if action == "open_toc":
+            return self._open_toc_drill()
+        if action == "insert_text":
+            return actions.insert_text_block(self._state, kind="body")
+        if action == "insert_title":
+            return actions.insert_text_block(self._state, kind="title")
+        if action == "insert_h1":
+            return actions.insert_text_block(self._state, kind="h1")
+        if action == "insert_h2":
+            return actions.insert_text_block(self._state, kind="h2")
+        if action == "insert_h3":
+            return actions.insert_text_block(self._state, kind="h3")
+        if action == "insert_toc":
+            return actions.insert_toc_block(self._state)
+        if action == "insert_three":
+            return self._insert_three_block()
+        if action == "insert_pyimage":
+            return self._insert_python_image_block()
+        if action == "insert_latex":
+            return self._insert_latex_block()
+        if action == "insert_map":
+            return self._insert_map_block()
+        return False
+
+    def _open_toc_drill(self) -> bool:
+        if self._state.document is None or self._state.view is None:
+            return False
+        toc_exists = any(
+            isinstance(block, TextBlock) and block.kind == "toc"
+            for block in self._state.document.blocks
+        )
+        if not toc_exists:
+            insert_at = self._state.view.get_selected_index()
+            self._state.document.insert_block_after(insert_at, TextBlock("", kind="toc"))
+            self._state.view.set_document(self._state.document)
+        self._state.view.open_toc_drill(self._state.document)
         return True
 
     def _quit(self) -> None:

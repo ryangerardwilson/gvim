@@ -3,7 +3,6 @@ from __future__ import annotations
 import hashlib
 import os
 import shutil
-import time
 from dataclasses import dataclass
 from typing import Sequence
 from pathlib import Path
@@ -27,6 +26,7 @@ except Exception:
     WebKit = None
 
 import document_io
+import keymap
 from block_model import (
     BlockDocument,
     LatexBlock,
@@ -108,11 +108,12 @@ class _TocBlockView(Gtk.Frame):
 
 
 class BlockEditorView(Gtk.Box):
-    def __init__(self, ui_mode: str = "dark") -> None:
+    def __init__(self, ui_mode: str = "dark", keymap_config: keymap.Keymap | None = None) -> None:
         super().__init__(orientation=Gtk.Orientation.VERTICAL, spacing=0)
         self.set_hexpand(True)
         self.set_vexpand(True)
         self._ui_mode = ui_mode
+        self._keymap = keymap_config
 
         self._scroller = Gtk.ScrolledWindow()
         self._scroller.set_policy(Gtk.PolicyType.AUTOMATIC, Gtk.PolicyType.AUTOMATIC)
@@ -151,9 +152,6 @@ class BlockEditorView(Gtk.Box):
         self._toc_expanded: set[int] = set()
         self._toc_scroll_before = 0.0
         self._toc_selected_before = 0
-        self._toc_leader_active = False
-        self._toc_leader_buffer = ""
-        self._toc_leader_start = 0.0
 
         self._vault_visible = False
         self._vault_panel = self._build_vault_overlay()
@@ -165,14 +163,9 @@ class BlockEditorView(Gtk.Box):
         self._vault_root: Path | None = None
         self._vault_path: Path | None = None
         self._vault_vaults: list[Path] = []
-        self._vault_leader_active = False
-        self._vault_leader_buffer = ""
-        self._vault_leader_start = 0.0
         self._vault_create_active = False
         self._vault_rename_active = False
         self._vault_rename_source: Path | None = None
-        self._vault_pending_key: str | None = None
-        self._vault_pending_start = 0.0
         self._vault_clipboard_mode: str | None = None
         self._vault_clipboard_path: Path | None = None
         self._vault_clipboard_name: str | None = None
@@ -543,55 +536,26 @@ class BlockEditorView(Gtk.Box):
             self.set_selected_index(self._toc_selected_before, scroll=False)
             self.set_scroll_position(self._toc_scroll_before)
 
-    def handle_toc_drill_key(self, keyval: int) -> bool:
+    def handle_toc_drill_key(self, keyval: int, state: int) -> bool:
         if not self._toc_visible:
             return False
-        if self._toc_leader_active and time.monotonic() - self._toc_leader_start > 2.0:
-            self._toc_leader_active = False
-            self._toc_leader_buffer = ""
-        if keyval == ord(",") and not self._toc_leader_active:
-            self._toc_leader_active = True
-            self._toc_leader_buffer = ""
-            self._toc_leader_start = time.monotonic()
+        if self._keymap is None:
+            return False
+        token = keymap.event_to_token(keyval, state)
+        if token is None:
+            return False
+        action, handled = self._keymap.match("toc", token)
+        if not handled:
+            return False
+        if action is None:
             return True
-        if self._toc_leader_active:
-            if keyval == Gdk.KEY_Escape:
-                self._toc_leader_active = False
-                self._toc_leader_buffer = ""
-                return True
-            if 32 <= keyval <= 126:
-                self._toc_leader_buffer += chr(keyval)
-            else:
-                return True
-            if self._toc_leader_buffer == "xar":
-                self._toc_leader_active = False
-                self._toc_leader_buffer = ""
-                self._expand_all_toc()
-                return True
-            if self._toc_leader_buffer == "xr":
-                self._toc_leader_active = False
-                self._toc_leader_buffer = ""
-                self._toggle_selected_toc()
-                return True
-            if self._toc_leader_buffer == "xc":
-                self._toc_leader_active = False
-                self._toc_leader_buffer = ""
-                self._collapse_all_toc()
-                return True
-            if not any(
-                command.startswith(self._toc_leader_buffer)
-                for command in ("xar", "xr", "xc")
-            ):
-                self._toc_leader_active = False
-                self._toc_leader_buffer = ""
-            return True
-        if keyval in (ord("?"), Gdk.KEY_question):
+        if action == "help_toggle":
             self.toggle_help()
             return True
-        if keyval in (Gdk.KEY_Escape, ord("q"), ord("Q")):
+        if action == "close":
             self.close_toc_drill(restore=True)
             return True
-        if keyval in (Gdk.KEY_Return, Gdk.KEY_KP_Enter):
+        if action == "open":
             entry = self._get_selected_toc_entry()
             if entry is None:
                 self.close_toc_drill(restore=True)
@@ -601,30 +565,49 @@ class BlockEditorView(Gtk.Box):
             self.center_on_index(block_index)
             self.close_toc_drill(restore=False)
             return True
-        if keyval in (ord("j"), ord("J")):
+        if action == "move_down":
             self._move_toc_selection(1)
             return True
-        if keyval in (ord("k"), ord("K")):
+        if action == "move_up":
             self._move_toc_selection(-1)
             return True
-        if keyval in (ord("h"), ord("H")):
+        if action == "collapse_or_parent":
             self._collapse_or_parent()
             return True
-        if keyval in (ord("l"), ord("L")):
+        if action == "expand_or_child":
             self._expand_or_child()
+            return True
+        if action == "expand_all":
+            self._expand_all_toc()
+            return True
+        if action == "toggle_selected":
+            self._toggle_selected_toc()
+            return True
+        if action == "collapse_all":
+            self._collapse_all_toc()
             return True
         return True
 
-    def handle_help_key(self, keyval: int) -> bool:
+    def handle_help_key(self, keyval: int, state: int) -> bool:
         if not self._help_visible:
             return False
-        if keyval in (ord("?"), Gdk.KEY_question, Gdk.KEY_Escape, ord("q"), ord("Q")):
+        if self._keymap is None:
+            return False
+        token = keymap.event_to_token(keyval, state)
+        if token is None:
+            return False
+        action, handled = self._keymap.match("help", token)
+        if not handled:
+            return False
+        if action is None:
+            return True
+        if action == "close":
             self.toggle_help()
             return True
-        if keyval in (ord("j"), ord("J")):
+        if action == "scroll_down":
             self._scroll_help(self._help_scroll_step)
             return True
-        if keyval in (ord("k"), ord("K")):
+        if action == "scroll_up":
             self._scroll_help(-self._help_scroll_step)
             return True
         return True
@@ -666,20 +649,9 @@ class BlockEditorView(Gtk.Box):
         self._vault_panel.set_visible(False)
         self._clear_vault_clipboard()
 
-    def handle_vault_key(self, keyval: int) -> VaultAction:
+    def handle_vault_key(self, keyval: int, state: int) -> VaultAction:
         if not self._vault_visible:
             return VaultAction(False)
-        if (
-            self._vault_pending_key
-            and time.monotonic() - self._vault_pending_start > 1.2
-        ):
-            self._vault_pending_key = None
-        if (
-            self._vault_leader_active
-            and time.monotonic() - self._vault_leader_start > 2.0
-        ):
-            self._vault_leader_active = False
-            self._vault_leader_buffer = ""
         if self._vault_create_active:
             if keyval == Gdk.KEY_Escape:
                 self._cancel_vault_create()
@@ -698,68 +670,25 @@ class BlockEditorView(Gtk.Box):
                     return VaultAction(True)
                 return VaultAction(True)
             return VaultAction(False)
-        if keyval == ord(",") and not self._vault_leader_active:
-            self._vault_leader_active = True
-            self._vault_leader_buffer = ""
-            self._vault_leader_start = time.monotonic()
+        if self._keymap is None:
+            return VaultAction(False)
+        token = keymap.event_to_token(keyval, state)
+        if token is None:
+            return VaultAction(False)
+        action, handled = self._keymap.match("vault", token)
+        if not handled:
+            return VaultAction(False)
+        if action is None:
             return VaultAction(True)
-        if self._vault_leader_active:
-            if keyval == Gdk.KEY_Escape:
-                self._vault_leader_active = False
-                self._vault_leader_buffer = ""
-                return VaultAction(True)
-            if 32 <= keyval <= 126:
-                self._vault_leader_buffer += chr(keyval)
-            else:
-                return VaultAction(True)
-            if self._vault_leader_buffer == "n":
-                self._vault_leader_active = False
-                self._vault_leader_buffer = ""
-                self._start_vault_create()
-                return VaultAction(True)
-            if self._vault_leader_buffer == "rn":
-                self._vault_leader_active = False
-                self._vault_leader_buffer = ""
-                self._start_vault_rename()
-                return VaultAction(True)
-            if self._vault_leader_buffer == "m":
-                self._vault_leader_active = False
-                self._vault_leader_buffer = ""
-                return VaultAction(True, toggle_theme=True)
-            if not any(
-                command.startswith(self._vault_leader_buffer)
-                for command in ("n", "rn", "m")
-            ):
-                self._vault_leader_active = False
-                self._vault_leader_buffer = ""
-            return VaultAction(True)
-        if keyval in (ord("d"), ord("D"), ord("y"), ord("Y")):
-            action_key = "d" if keyval in (ord("d"), ord("D")) else "y"
-            if self._vault_pending_key == action_key:
-                self._vault_pending_key = None
-                if action_key == "d":
-                    self._vault_cut_selected()
-                else:
-                    self._vault_copy_selected()
-                return VaultAction(True)
-            self._vault_pending_key = action_key
-            self._vault_pending_start = time.monotonic()
-            return VaultAction(True)
-        if keyval in (ord("p"), ord("P")):
-            self._vault_pending_key = None
-            self._vault_paste_clipboard()
-            return VaultAction(True)
-        if self._vault_pending_key is not None:
-            self._vault_pending_key = None
-        if keyval == Gdk.KEY_Escape:
+        if action == "close":
             return VaultAction(True, close=True)
-        if keyval in (ord("j"), ord("J")):
+        if action == "move_down":
             self._move_vault_selection(1)
             return VaultAction(True)
-        if keyval in (ord("k"), ord("K")):
+        if action == "move_up":
             self._move_vault_selection(-1)
             return VaultAction(True)
-        if keyval in (ord("h"), ord("H")):
+        if action == "up":
             if (
                 self._vault_screen == "browser"
                 and self._vault_root is not None
@@ -770,7 +699,7 @@ class BlockEditorView(Gtk.Box):
                 self._vault_selected = 0
                 self._render_vault_entries()
             return VaultAction(True)
-        if keyval in (ord("l"), ord("L"), Gdk.KEY_Return, Gdk.KEY_KP_Enter):
+        if action == "enter_or_open":
             entry = self._get_selected_vault_entry()
             if entry is None:
                 return VaultAction(True)
@@ -789,6 +718,23 @@ class BlockEditorView(Gtk.Box):
             if entry.kind == "file":
                 return VaultAction(True, opened_path=entry.path)
             return VaultAction(True)
+        if action == "copy":
+            self._vault_copy_selected()
+            return VaultAction(True)
+        if action == "cut":
+            self._vault_cut_selected()
+            return VaultAction(True)
+        if action == "paste":
+            self._vault_paste_clipboard()
+            return VaultAction(True)
+        if action == "new_entry":
+            self._start_vault_create()
+            return VaultAction(True)
+        if action == "rename":
+            self._start_vault_rename()
+            return VaultAction(True)
+        if action == "toggle_theme":
+            return VaultAction(True, toggle_theme=True)
         return VaultAction(True)
 
     def _build_vault_overlay(self) -> Gtk.Widget:
@@ -1519,51 +1465,10 @@ class BlockEditorView(Gtk.Box):
         title.set_halign(Gtk.Align.START)
         panel.append(title)
 
-        lines = [
-            "Navigation",
-            "  j/k        move selection",
-            "  Ctrl+j/k   move block",
-            "  ,j         last block",
-            "  ,k         first block",
-            "  ,i         index drill",
-            "  ,v         vault",
-            "  ?          help",
-            "  ,m         toggle theme",
-            "  dd         cut selected block",
-            "  yy         yank selected block",
-            "  p          paste clipboard block",
-            "  g/G        first/last block",
-            "  Enter      edit selected block",
-            "  q          quit without saving",
-            "",
-            "Vault",
-            "  j/k        move selection",
-            "  h/l        up/enter",
-            "  Enter      open",
-            "  ,n         new file/dir",
-            "  ,rn        rename",
-            "  yy         copy",
-            "  dd         cut",
-            "  p          paste",
-            "  Esc        back to document",
-            "",
-            "Blocks",
-            "  ,bn        normal text",
-            "  ,bht       title",
-            "  ,bh1 ,bh2 ,bh3 headings",
-            "  ,bi        index",
-            "  ,bjs       Three.js block",
-            "  ,bpy       Python render",
-            "  ,bltx      LaTeX block",
-            "  ,bmap      map block",
-            "",
-            "Other",
-            "  Ctrl+S     save",
-            "  Ctrl+E     export html",
-            "  Ctrl+T     save and exit",
-            "  Ctrl+X     exit without saving",
-            "  ?          toggle this help",
-        ]
+        if self._keymap is None:
+            lines = []
+        else:
+            lines = keymap.build_help_lines(self._keymap)
         scroller = Gtk.ScrolledWindow()
         scroller.set_policy(Gtk.PolicyType.AUTOMATIC, Gtk.PolicyType.AUTOMATIC)
         scroller.set_hexpand(True)

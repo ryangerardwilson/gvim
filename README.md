@@ -92,6 +92,98 @@ python main.py
 - `-q` — quickstart a new document with demo content.
 - `-h` — show CLI help.
 
+## Configuration
+
+`gvim` stores settings in `~/.config/gvim/config.json` (or
+`$XDG_CONFIG_HOME/gvim/config.json`). You can edit this file to customize the
+Vim-style keymap and leader.
+
+Example `config.json` with keymap overrides:
+
+```json
+{
+  "python_path": "/usr/bin/python3",
+  "mode": "dark",
+  "vaults": ["/path/to/vault"],
+  "keymap": {
+    "leader": ",",
+    "modes": {
+      "document": {
+        "move_down": "j",
+        "move_up": "k",
+        "move_block_down": "<C-j>",
+        "move_block_up": "<C-k>",
+        "first_block": "gg",
+        "last_block": "G",
+        "open_editor": "<CR>",
+        "quit_no_save": "q",
+        "save": "<C-s>",
+        "export_html": "<C-e>",
+        "save_and_exit": "<C-t>",
+        "exit_no_save": "<C-x>",
+        "help_toggle": "?",
+        "paste_block": "p",
+        "delete_block": "dd",
+        "yank_block": "yy",
+        "toggle_theme": "<leader>m",
+        "open_vault": "<leader>v",
+        "open_toc": "<leader>i",
+        "insert_text": "<leader>bn",
+        "insert_title": "<leader>bht",
+        "insert_h1": "<leader>bh1",
+        "insert_h2": "<leader>bh2",
+        "insert_h3": "<leader>bh3",
+        "insert_toc": "<leader>bi",
+        "insert_three": "<leader>bjs",
+        "insert_pyimage": "<leader>bpy",
+        "insert_latex": "<leader>bltx",
+        "insert_map": "<leader>bmap"
+      },
+      "toc": {
+        "move_down": "j",
+        "move_up": "k",
+        "collapse_or_parent": "h",
+        "expand_or_child": "l",
+        "open": "<CR>",
+        "close": "<Esc>",
+        "help_toggle": "?",
+        "expand_all": "<leader>xar",
+        "toggle_selected": "<leader>xr",
+        "collapse_all": "<leader>xc"
+      },
+      "vault": {
+        "move_down": "j",
+        "move_up": "k",
+        "up": "h",
+        "enter_or_open": "l",
+        "close": "<Esc>",
+        "copy": "yy",
+        "cut": "dd",
+        "paste": "p",
+        "new_entry": "<leader>n",
+        "rename": "<leader>rn",
+        "toggle_theme": "<leader>m"
+      },
+      "help": {
+        "scroll_down": "j",
+        "scroll_up": "k",
+        "close": "?"
+      }
+    }
+  }
+}
+```
+
+The repository ships a ready-to-edit template at `template_config.json`.
+
+Guardrails:
+
+- Leader must be a single printable ASCII character (space is allowed).
+- Only Vim-style tokens are accepted (`j`, `gg`, `<C-s>`, `<Esc>`, `<CR>`, etc.).
+- Each action accepts exactly one key sequence (string value).
+- Unknown tokens, non-ASCII keys, and `Ctrl+Alt` combos are rejected.
+- Keymaps do not apply while typing in vault create/rename inputs.
+
 ### Theme assumptions
 
 The GTK UI ships with a dark/light theme toggle (` ,m `). Colors and font sizes
