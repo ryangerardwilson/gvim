@@ -14,7 +14,7 @@ import gi
 
 gi.require_version("Gtk", "4.0")
 gi.require_version("Gdk", "4.0")
-from gi.repository import Gdk, Gtk  # type: ignore[import-not-found, attr-defined]
+from gi.repository import Gdk, GLib, Gtk  # type: ignore[import-not-found, attr-defined]
 
 import actions
 import config
@@ -492,7 +492,7 @@ class Orchestrator:
         if kind == "pyimage":
             if self._state.view is not None:
                 self._state.view.set_pyimage_pending(index)
-            self._render_python_image(index)
+            GLib.idle_add(lambda: (self._render_python_image(index) or False))
             return
         view = self._state.view
         if view is None:
