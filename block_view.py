@@ -322,6 +322,14 @@ class BlockEditorView(Gtk.Box):
                 widget.set_pending(False, block)
                 widget.update_block(block, self._ui_mode)
                 return True
+        if isinstance(widget, _LatexBlockView):
+            document = self._document
+            if document is None:
+                return False
+            block = document.blocks[index]
+            if isinstance(block, LatexBlock):
+                widget.update_latex(block.source, self._ui_mode)
+                return True
         if hasattr(widget, "reload_html"):
             try:
                 widget.reload_html()
@@ -1794,6 +1802,13 @@ class _LatexBlockView(Gtk.Frame):
     def reload_html(self) -> None:
         if self.view is None or self._html is None:
             return
+        self.view.load_html(self._html, "file:///")
+
+    def update_latex(self, source: str, ui_mode: str) -> None:
+        self._ui_mode = ui_mode
+        if self.view is None:
+            return
+        self._html = render_latex_html(source, ui_mode)
         self.view.load_html(self._html, "file:///")
 
 
