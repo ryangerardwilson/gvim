@@ -18,8 +18,16 @@ session for full editing power. Documents are stored as a git-friendly text
 - Bundled: `three.module.min.js` is included for 3D blocks.
 - Bundled: KaTeX assets (`katex.min.js`, `katex.min.css`, `fonts/`) for LaTeX.
 
-On supported Linux distros, `install.sh` installs the required system libraries
-for PyGObject and GTK4 automatically.
+### Distros where it should "just work"
+
+The installer auto-installs system dependencies on these Linux distros:
+
+- Ubuntu / Debian
+- Fedora
+- Arch
+
+On other distros (NixOS, Gentoo, Alpine, etc.), install GTK4 + PyGObject
+manually and run from source or use the binary with a compatible runtime.
 
 ## Installation
 
