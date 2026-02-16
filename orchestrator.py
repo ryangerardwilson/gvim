@@ -162,6 +162,9 @@ class Orchestrator:
                 self._toggle_ui_mode()
             return action.handled
 
+        if self._state.view.handle_help_key(keyval):
+            return True
+
         return self._handle_doc_keys(keyval, state)
 
     def _handle_doc_keys(self, keyval, state) -> bool:

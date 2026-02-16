@@ -133,9 +133,11 @@ class BlockEditorView(Gtk.Box):
         self._column.set_valign(Gtk.Align.START)
 
         self._help_visible = False
+        self._help_scroller: Gtk.ScrolledWindow | None = None
         self._help_panel = self._build_help_overlay()
         self._help_scroll = 0.0
         self._help_selected = 0
+        self._help_scroll_step = 42.0
 
         self._help_panel.set_visible(False)
 
@@ -536,6 +538,31 @@ class BlockEditorView(Gtk.Box):
             self._expand_or_child()
             return True
         return True
+
+    def handle_help_key(self, keyval: int) -> bool:
+        if not self._help_visible:
+            return False
+        if keyval in (ord("?"), Gdk.KEY_question, Gdk.KEY_Escape, ord("q"), ord("Q")):
+            self.toggle_help()
+            return True
+        if keyval in (ord("j"), ord("J")):
+            self._scroll_help(self._help_scroll_step)
+            return True
+        if keyval in (ord("k"), ord("K")):
+            self._scroll_help(-self._help_scroll_step)
+            return True
+        return True
+
+    def _scroll_help(self, delta: float) -> None:
+        if self._help_scroller is None:
+            return
+        vadjustment = self._help_scroller.get_vadjustment()
+        if vadjustment is None:
+            return
+        current = vadjustment.get_value()
+        lower = vadjustment.get_lower()
+        upper = vadjustment.get_upper() - vadjustment.get_page_size()
+        vadjustment.set_value(max(lower, min(upper, current + delta)))
 
     def vault_active(self) -> bool:
         return self._vault_visible
@@ -1397,8 +1424,7 @@ class BlockEditorView(Gtk.Box):
             vadjustment.set_value(max(0, bottom - vadjustment.get_page_size() + 12))
         return True
 
-    @staticmethod
-    def _build_help_overlay() -> Gtk.Widget:
+    def _build_help_overlay(self) -> Gtk.Widget:
         overlay = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
         overlay.set_hexpand(True)
         overlay.set_vexpand(True)
@@ -1466,11 +1492,21 @@ class BlockEditorView(Gtk.Box):
             "  Ctrl+X     exit without saving",
             "  ?          toggle this help",
         ]
+        scroller = Gtk.ScrolledWindow()
+        scroller.set_policy(Gtk.PolicyType.AUTOMATIC, Gtk.PolicyType.AUTOMATIC)
+        scroller.set_hexpand(True)
+        scroller.set_vexpand(True)
+        scroller.set_min_content_height(280)
+
         body = Gtk.Label(label="\n".join(lines))
         body.add_css_class("help-body")
         body.set_halign(Gtk.Align.START)
-        panel.append(body)
+        body.set_selectable(False)
+        scroller.set_child(body)
+        panel.append(scroller)
 
+        self._help_scroller = scroller
+        
         overlay.append(panel)
         return overlay
 
