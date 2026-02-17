@@ -952,19 +952,10 @@ def _run_export_all() -> int:
 
 
 def _run_export(output_path: str, input_path: str | None) -> int:
-    if not input_path:
-        if output_path == "__default__":
-            return _run_export_all()
-        print("Export requires a .gvim input path", file=sys.stderr)
+    if input_path:
+        print("Export requires running inside a configured vault; omit the input path.", file=sys.stderr)
         return 1
-    if output_path == "__default__" or not output_path:
-        output_path = str(Path(input_path).with_suffix(".html"))
-    doc_path = Path(input_path).expanduser()
-    if not doc_path.exists():
-        print(f"Missing document: {doc_path}", file=sys.stderr)
+    if output_path != "__default__":
+        print("Export does not accept a custom output path; use gvim -e from the vault root.", file=sys.stderr)
         return 1
-    document = document_io.load(doc_path)
-    python_path = _get_venv_python()
-    ui_mode = config.get_ui_mode() or "dark"
-    export_document(document, Path(output_path).expanduser(), python_path, ui_mode)
-    return 0
+    return _run_export_all()
