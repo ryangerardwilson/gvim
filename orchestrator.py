@@ -26,7 +26,12 @@ from loading_screen import LoadingScreen
 import document_io
 import editor
 import py_runner
-from export_html import build_index_tree_html, export_document, export_vault_index
+from export_html import (
+    build_index_link_id,
+    build_index_tree_html,
+    export_document,
+    export_vault_index,
+)
 from design_constants import colors_for, font
 from _version import __version__
 from app_state import AppState
@@ -959,6 +964,7 @@ def _run_export_all() -> int:
         rel_output = output_path.relative_to(root)
         depth = max(len(rel_output.parts) - 1, 0)
         base_prefix = "../" * depth
+        index_href = f"{base_prefix}index.html#{build_index_link_id(rel_output)}"
         index_tree_html = build_index_tree_html(rel_index_items, base_prefix)
         export_document(
             document,
@@ -966,6 +972,7 @@ def _run_export_all() -> int:
             python_path,
             ui_mode,
             index_tree_html=index_tree_html,
+            index_href=index_href,
         )
 
     export_vault_index(root, index_items, ui_mode)

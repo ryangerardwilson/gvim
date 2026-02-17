@@ -33,8 +33,9 @@ def export_document(
     python_path: str | None,
     ui_mode: str = "dark",
     index_tree_html: str | None = None,
+    index_href: str | None = None,
 ) -> None:
-    html = _build_html(document, python_path, ui_mode, index_tree_html)
+    html = _build_html(document, python_path, ui_mode, index_tree_html, index_href)
     output_path.write_text(html, encoding="utf-8")
 
 
@@ -68,11 +69,16 @@ def build_index_tree_html(
     return _build_index_tree_html(rel_items, base_prefix)
 
 
+def build_index_link_id(rel_path: Path) -> str:
+    return _index_link_id(rel_path)
+
+
 def _build_html(
     document: BlockDocument,
     python_path: str | None,
     ui_mode: str,
     index_tree_html: str | None,
+    index_href: str | None,
 ) -> str:
     dark = colors_for("dark")
     light = colors_for("light")
@@ -303,6 +309,7 @@ def _build_html(
         "      .index-body .dir-name { color: var(--muted-color, var(--body-text)); font-weight: 600; }\n"
         "      .index-body a { color: var(--body-text); text-decoration: none; }\n"
         "      .index-body a:hover { color: var(--link-color, var(--body-text)); text-decoration: underline; }\n"
+        "      .index-body a:focus { outline: none; }\n"
         "      .index-body a.nav-selected {\n"
         "        text-decoration: underline;\n"
         "        color: var(--link-color, var(--body-text));\n"
@@ -340,6 +347,8 @@ def _build_html(
         f'    <script src="{LEAFLET_JS_CDN}"></script>\n'
         "    <script>\n"
         f"      const themeDefault = '{ui_mode}';\n"
+        f"      const indexHref = { _js_string(index_href) if index_href else 'null' };\n"
+        "      const indexHash = indexHref && indexHref.includes('#') ? indexHref.split('#')[1] : null;\n"
         "      const themeStorageKey = 'gvim-theme';\n"
         "      const root = document.documentElement;\n"
         "      const toggleButtons = document.querySelectorAll('.theme-toggle button');\n"
@@ -409,6 +418,13 @@ def _build_html(
         "      const refreshIndexLinks = () => {\n"
         "        indexLinks = indexBody ? Array.from(indexBody.querySelectorAll('a')) : [];\n"
         "      };\n"
+        "      const selectById = (id) => {\n"
+        "        if (!id) return false;\n"
+        "        const idx = indexLinks.findIndex((link) => link.id === id);\n"
+        "        if (idx < 0) return false;\n"
+        "        setSelected(idx);\n"
+        "        return true;\n"
+        "      };\n"
         "      const setSelected = (next) => {\n"
         "        if (!indexLinks.length) return;\n"
         "        if (indexSelected >= 0 && indexSelected < indexLinks.length) {\n"
@@ -424,7 +440,9 @@ def _build_html(
         "        indexModal.classList.add('open');\n"
         "        indexModal.setAttribute('aria-hidden', 'false');\n"
         "        refreshIndexLinks();\n"
-        "        setSelected(0);\n"
+        "        if (!selectById(indexHash)) {\n"
+        "          setSelected(0);\n"
+        "        }\n"
         "        if (indexBody) indexBody.focus();\n"
         "      };\n"
         "      const closeIndex = () => {\n"
@@ -444,6 +462,13 @@ def _build_html(
         "          event.preventDefault();\n"
         "          openIndex();\n"
         "          return;\n"
+        "        }\n"
+        "        if (event.key === 'h' && !modalOpen) {\n"
+        "          if (indexHref) {\n"
+        "            event.preventDefault();\n"
+        "            window.location.href = indexHref;\n"
+        "            return;\n"
+        "          }\n"
         "        }\n"
         "        if (modalOpen) {\n"
         "          if (event.key === 'Escape') {\n"
@@ -474,6 +499,13 @@ def _build_html(
         "              return;\n"
         "            }\n"
         "            setSelected(indexSelected - 1);\n"
+        "            return;\n"
+        "          }\n"
+        "          if (event.key === 'l') {\n"
+        "            event.preventDefault();\n"
+        "            if (indexSelected >= 0 && indexSelected < indexLinks.length) {\n"
+        "              indexLinks[indexSelected].click();\n"
+        "            }\n"
         "            return;\n"
         "          }\n"
         "        }\n"
@@ -732,6 +764,8 @@ def _build_index_html(paths: list[tuple[Path, str]], ui_mode: str, title: str) -
         "      .dir-name { color: var(--muted-color); font-weight: 600; }\n"
         "      a { color: var(--link-color); text-decoration: none; }\n"
         "      a:hover { text-decoration: underline; }\n"
+        "      a:focus { outline: none; }\n"
+        "      a.nav-selected { text-decoration: underline; }\n"
         "      .theme-toggle {\n"
         "        position: fixed;\n"
         "        top: 16px;\n"
@@ -797,6 +831,57 @@ def _build_index_html(paths: list[tuple[Path, str]], ui_mode: str, title: str) -
         "          setStoredTheme(value);\n"
         "        });\n"
         "      });\n"
+        "      const indexLinks = Array.from(document.querySelectorAll('.index-tree a'));\n"
+        "      let indexSelected = -1;\n"
+        "      const setSelected = (next) => {\n"
+        "        if (!indexLinks.length) return;\n"
+        "        if (indexSelected >= 0 && indexSelected < indexLinks.length) {\n"
+        "          indexLinks[indexSelected].classList.remove('nav-selected');\n"
+        "        }\n"
+        "        indexSelected = Math.max(0, Math.min(next, indexLinks.length - 1));\n"
+        "        const link = indexLinks[indexSelected];\n"
+        "        link.classList.add('nav-selected');\n"
+        "        link.scrollIntoView({ block: 'nearest' });\n"
+        "      };\n"
+        "      const selectByHash = () => {\n"
+        "        const hash = window.location.hash ? window.location.hash.slice(1) : '';\n"
+        "        if (!hash) return false;\n"
+        "        const idx = indexLinks.findIndex((link) => link.id === hash);\n"
+        "        if (idx < 0) return false;\n"
+        "        setSelected(idx);\n"
+        "        return true;\n"
+        "      };\n"
+        "      if (indexLinks.length && !selectByHash()) {\n"
+        "        setSelected(0);\n"
+        "      }\n"
+        "      window.addEventListener('hashchange', () => {\n"
+        "        selectByHash();\n"
+        "      });\n"
+        "      document.addEventListener('keydown', (event) => {\n"
+        "        const tag = event.target && event.target.tagName;\n"
+        "        if (tag === 'INPUT' || tag === 'TEXTAREA' || event.target.isContentEditable) return;\n"
+        "        if (event.key === 'h') {\n"
+        "          event.preventDefault();\n"
+        "          window.location.href = './index.html';\n"
+        "          return;\n"
+        "        }\n"
+        "        if (event.key === 'j') {\n"
+        "          event.preventDefault();\n"
+        "          setSelected(indexSelected + 1);\n"
+        "          return;\n"
+        "        }\n"
+        "        if (event.key === 'k') {\n"
+        "          event.preventDefault();\n"
+        "          setSelected(indexSelected - 1);\n"
+        "          return;\n"
+        "        }\n"
+        "        if (event.key === 'Enter' || event.key === 'l') {\n"
+        "          event.preventDefault();\n"
+        "          if (indexSelected >= 0 && indexSelected < indexLinks.length) {\n"
+        "            indexLinks[indexSelected].click();\n"
+        "          }\n"
+        "        }\n"
+        "      });\n"
         "    </script>\n"
         "  </body>\n"
         "</html>\n"
@@ -842,8 +927,9 @@ def _render_index_tree(
         lines.append("</li>")
     for filename, rel_path, title in files:
         url = _encode_rel_path(rel_path, base_prefix)
+        link_id = _index_link_id(rel_path)
         lines.append(
-            f'<li class="file"><a href="{url}">{_escape_html(title)}</a></li>'
+            f'<li class="file"><a id="{link_id}" href="{url}">{_escape_html(title)}</a></li>'
         )
     lines.append("</ul>")
     return "\n".join(lines)
@@ -858,3 +944,19 @@ def _encode_rel_path(path: Path, base_prefix: str) -> str:
 def _build_index_tree_html(paths: list[tuple[Path, str]], base_prefix: str) -> str:
     tree = _build_index_tree(paths)
     return _render_index_tree(tree, base_prefix, is_root=True)
+
+
+def _index_link_id(rel_path: Path) -> str:
+    slug = []
+    prev_dash = False
+    raw = "/".join(rel_path.parts)
+    for ch in raw.lower():
+        if ch.isalnum():
+            slug.append(ch)
+            prev_dash = False
+            continue
+        if not prev_dash:
+            slug.append("-")
+            prev_dash = True
+    text = "".join(slug).strip("-")
+    return f"idx-{text or 'doc'}"
