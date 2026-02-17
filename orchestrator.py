@@ -6,6 +6,7 @@ import argparse
 import logging
 import threading
 import os
+import shutil
 import subprocess
 import sys
 import traceback
@@ -950,7 +951,7 @@ def _run_init() -> int:
     for vault in vaults:
         if root_resolved == vault:
             print(f"Vault already registered: {root}")
-            return 0
+            break
         if vault in root_resolved.parents:
             print(
                 "Cannot initialize a vault here: this directory is already inside a configured vault. Run 'gvim init' at the vault root instead.",
@@ -966,7 +967,7 @@ def _run_init() -> int:
         print(f"Vault registered: {root}")
     else:
         print(f"Vault already registered: {root}")
-    return 0
+    return _run_git_sync(root)
 
 
 def _find_config_vault_for_path(path: Path) -> Path | None:
@@ -978,6 +979,136 @@ def _find_config_vault_for_path(path: Path) -> Path | None:
         if resolved_path == vault or vault in resolved_path.parents:
             return vault
     return None
+
+
+def _run_git_sync(root: Path) -> int:
+    if shutil.which("git") is None:
+        print("Git not found; skipping sync.", file=sys.stderr)
+        return 1
+    if not _git_is_repo(root):
+        if not _git_init(root):
+            return 1
+    if not _git_stage_all(root):
+        return 1
+    _git_commit_sync(root)
+    if not _git_has_remote(root):
+        remote = input("Git remote URL: ").strip()
+        if not remote:
+            print("Missing remote URL; skipping push.", file=sys.stderr)
+            return 1
+        if not _git_add_remote(root, remote):
+            return 1
+    if not _git_has_head(root):
+        print("No commits to push.", file=sys.stderr)
+        return 0
+    if not _git_push(root):
+        return 1
+    return 0
+
+
+def _git_is_repo(root: Path) -> bool:
+    result = subprocess.run(
+        ["git", "-C", str(root), "rev-parse", "--is-inside-work-tree"],
+        check=False,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        text=True,
+    )
+    return result.returncode == 0
+
+
+def _git_init(root: Path) -> bool:
+    result = subprocess.run(
+        ["git", "-C", str(root), "init"],
+        check=False,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        text=True,
+    )
+    if result.returncode != 0:
+        print(result.stderr.strip() or "Git init failed", file=sys.stderr)
+        return False
+    return True
+
+
+def _git_stage_all(root: Path) -> bool:
+    result = subprocess.run(
+        ["git", "-C", str(root), "add", "."],
+        check=False,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        text=True,
+    )
+    if result.returncode != 0:
+        print(result.stderr.strip() or "Git add failed", file=sys.stderr)
+        return False
+    return True
+
+
+def _git_commit_sync(root: Path) -> None:
+    result = subprocess.run(
+        ["git", "-C", str(root), "commit", "-m", "sync"],
+        check=False,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        text=True,
+    )
+    if result.returncode == 0:
+        return
+    combined = f"{result.stdout}\n{result.stderr}".lower()
+    if "nothing to commit" in combined:
+        return
+    print(result.stderr.strip() or "Git commit failed", file=sys.stderr)
+
+
+def _git_has_remote(root: Path) -> bool:
+    result = subprocess.run(
+        ["git", "-C", str(root), "remote", "get-url", "origin"],
+        check=False,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        text=True,
+    )
+    return result.returncode == 0
+
+
+def _git_add_remote(root: Path, remote: str) -> bool:
+    result = subprocess.run(
+        ["git", "-C", str(root), "remote", "add", "origin", remote],
+        check=False,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        text=True,
+    )
+    if result.returncode != 0:
+        print(result.stderr.strip() or "Failed to add remote", file=sys.stderr)
+        return False
+    return True
+
+
+def _git_has_head(root: Path) -> bool:
+    result = subprocess.run(
+        ["git", "-C", str(root), "rev-parse", "--verify", "HEAD"],
+        check=False,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        text=True,
+    )
+    return result.returncode == 0
+
+
+def _git_push(root: Path) -> bool:
+    result = subprocess.run(
+        ["git", "-C", str(root), "push", "-u", "origin", "HEAD"],
+        check=False,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        text=True,
+    )
+    if result.returncode != 0:
+        print(result.stderr.strip() or "Git push failed", file=sys.stderr)
+        return False
+    return True
 
 
 def _run_export_all() -> int:
