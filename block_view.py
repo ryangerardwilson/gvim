@@ -183,15 +183,6 @@ class BlockEditorView(Gtk.Box):
         self._status_timer_id: int | None = None
         self._scroll_idle_id: int | None = None
         self._scroll_retries = 0
-        self._status_bar = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL)
-        self._status_bar.add_css_class("status-bar")
-        self._status_bar.set_hexpand(True)
-        self._status_bar.set_visible(False)
-        self._status_label = Gtk.Label()
-        self._status_label.set_halign(Gtk.Align.START)
-        self._status_label.set_hexpand(True)
-        self._status_bar.append(self._status_label)
-
         self._scroller.set_child(self._column)
 
         self._overlay = Gtk.Overlay()
@@ -202,8 +193,20 @@ class BlockEditorView(Gtk.Box):
         self._overlay.add_overlay(self._help_panel)
         self._overlay.add_overlay(self._vault_panel)
 
+        self._status_bar = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL)
+        self._status_bar.add_css_class("status-bar")
+        self._status_bar.set_hexpand(True)
+        self._status_bar.set_halign(Gtk.Align.CENTER)
+        self._status_bar.set_valign(Gtk.Align.END)
+        self._status_bar.set_margin_bottom(16)
+        self._status_bar.set_visible(False)
+        self._status_label = Gtk.Label()
+        self._status_label.set_halign(Gtk.Align.START)
+        self._status_label.set_hexpand(True)
+        self._status_bar.append(self._status_label)
+        self._overlay.add_overlay(self._status_bar)
+
         self.append(self._overlay)
-        self.append(self._status_bar)
 
         self._document: BlockDocument | None = None
 
