@@ -948,9 +948,11 @@ def _run_init() -> int:
     root = Path.cwd()
     vaults = [path.resolve() for path in config.get_vaults() if path.exists()]
     root_resolved = root.resolve()
+    already_registered = False
     for vault in vaults:
         if root_resolved == vault:
             print(f"Vault already registered: {root}")
+            already_registered = True
             break
         if vault in root_resolved.parents:
             print(
@@ -962,11 +964,12 @@ def _run_init() -> int:
                 "Cannot initialize a vault here: this directory contains a configured vault. Remove the nested vault before initializing here.",
             )
             return 1
-    added = config.add_vault(root)
-    if added:
-        print(f"Vault registered: {root}")
-    else:
-        print(f"Vault already registered: {root}")
+    if not already_registered:
+        added = config.add_vault(root)
+        if added:
+            print(f"Vault registered: {root}")
+        else:
+            print(f"Vault already registered: {root}")
     return _run_git_sync(root)
 
 
@@ -1007,14 +1010,21 @@ def _run_git_sync(root: Path) -> int:
 
 
 def _git_is_repo(root: Path) -> bool:
+    if (root / ".git").exists():
+        return True
     result = subprocess.run(
-        ["git", "-C", str(root), "rev-parse", "--is-inside-work-tree"],
+        ["git", "-C", str(root), "rev-parse", "--show-toplevel"],
         check=False,
         stdout=subprocess.PIPE,
         stderr=subprocess.PIPE,
         text=True,
     )
-    return result.returncode == 0
+    if result.returncode != 0:
+        return False
+    try:
+        return Path(result.stdout.strip()).resolve() == root.resolve()
+    except OSError:
+        return False
 
 
 def _git_init(root: Path) -> bool:
