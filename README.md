@@ -115,6 +115,13 @@ Vim-style keymap and leader.
 
 Edits are persisted automatically whenever you change a block.
 
+## GitHub Actions Deploy
+
+`Ctrl+D` runs the deploy pipeline from your vault root: it exports the full
+static site, then runs `git add .`, `git commit -m "sync"`, and `git push`.
+Pair this with the optional GitHub Actions workflow created during `gvim init`
+to publish the latest HTML on every push.
+
 Example `config.json` with keymap overrides:
 
 ```json
