@@ -567,6 +567,10 @@ class Orchestrator:
         if root is None:
             self._show_status("Deploy requires a configured vault", "error")
             return
+        export_rc = _run_export_all()
+        if export_rc != 0:
+            self._show_status("Export failed", "error")
+            return
         if shutil.which("git") is None:
             self._show_status("Git not found", "error")
             return
@@ -1015,7 +1019,19 @@ def _run_init() -> int:
             print(f"Vault registered: {root}")
         else:
             print(f"Vault already registered: {root}")
-    return _run_git_sync(root)
+    git_rc = _run_git_sync(root)
+    if git_rc != 0:
+        return git_rc
+    if _prompt_pages_setup():
+        if not _setup_pages_workflow(root):
+            return 1
+        if not _git_stage_all(root):
+            return 1
+        _git_commit_sync(root)
+        if not _git_push(root):
+            return 1
+        print("GitHub Pages workflow added. Set Pages source to GitHub Actions.")
+    return 0
 
 
 def _find_config_vault_for_path(path: Path) -> Path | None:
@@ -1167,6 +1183,61 @@ def _git_push(root: Path) -> bool:
         print(result.stderr.strip() or "Git push failed", file=sys.stderr)
         return False
     return True
+
+
+def _prompt_pages_setup() -> bool:
+    try:
+        answer = input("Set up GitHub Pages deployment (public site)? (y/N): ").strip()
+    except EOFError:
+        return False
+    return answer.lower() in {"y", "yes"}
+
+
+def _setup_pages_workflow(root: Path) -> bool:
+    workflows_dir = root / ".github" / "workflows"
+    workflow_path = workflows_dir / "pages.yml"
+    if workflow_path.exists():
+        print("Pages workflow already exists; skipping.")
+        return True
+    try:
+        workflows_dir.mkdir(parents=True, exist_ok=True)
+        workflow_path.write_text(_pages_workflow_yaml(), encoding="utf-8")
+    except OSError as exc:
+        print(f"Failed to write workflow: {exc}", file=sys.stderr)
+        return False
+    return True
+
+
+def _pages_workflow_yaml() -> str:
+    return (
+        "name: Deploy Pages\n"
+        "on:\n"
+        "  push:\n"
+        "    branches: [main]\n"
+        "permissions:\n"
+        "  contents: read\n"
+        "  pages: write\n"
+        "  id-token: write\n"
+        "concurrency:\n"
+        "  group: pages\n"
+        "  cancel-in-progress: false\n"
+        "jobs:\n"
+        "  deploy:\n"
+        "    runs-on: ubuntu-latest\n"
+        "    environment:\n"
+        "      name: github-pages\n"
+        "      url: ${{ steps.deployment.outputs.page_url }}\n"
+        "    steps:\n"
+        "      - uses: actions/checkout@v4\n"
+        "      - name: Export HTML\n"
+        "        run: gvim -e\n"
+        "      - uses: actions/configure-pages@v5\n"
+        "      - uses: actions/upload-pages-artifact@v3\n"
+        "        with:\n"
+        "          path: .\n"
+        "      - id: deployment\n"
+        "        uses: actions/deploy-pages@v4\n"
+    )
 
 
 def _run_export_all() -> int:
