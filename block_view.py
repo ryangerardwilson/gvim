@@ -136,8 +136,10 @@ class BlockEditorView(Gtk.Box):
         self._column = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=0)
         self._column.set_margin_top(24)
         self._column.set_margin_bottom(160)
-        self._column.set_margin_start(24)
-        self._column.set_margin_end(24)
+        self._column.set_margin_start(120)
+        self._column.set_margin_end(120)
+        self._column_padding: int | None = None
+        self._scroller.add_tick_callback(self._tick_column_padding)
         self._column.set_valign(Gtk.Align.START)
         self._column.set_hexpand(True)
 
@@ -228,6 +230,18 @@ class BlockEditorView(Gtk.Box):
         self._refresh_selection()
         self._column.queue_resize()
         GLib.idle_add(self._column.queue_resize)
+
+    def _tick_column_padding(self, _widget: Gtk.Widget, _frame_clock) -> bool:
+        width = self._scroller.get_allocated_width()
+        if width <= 0:
+            return True
+        padding = min(200, max(24, int((width - 600) * 0.4)))
+        if padding == self._column_padding:
+            return True
+        self._column_padding = padding
+        self._column.set_margin_start(padding)
+        self._column.set_margin_end(padding)
+        return True
 
     def insert_widget_after(self, index: int, block, document: BlockDocument) -> None:
         toc_text = _build_toc(
