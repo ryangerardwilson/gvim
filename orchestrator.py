@@ -941,13 +941,13 @@ def _run_export_all() -> int:
         return 1
     python_path = _get_venv_python()
     ui_mode = config.get_ui_mode() or "dark"
-    html_paths = []
+    index_items = []
     for doc_path in doc_paths:
         document = document_io.load(doc_path)
         output_path = doc_path.with_suffix(".html")
         export_document(document, output_path, python_path, ui_mode)
-        html_paths.append(output_path)
-    export_vault_index(root, html_paths, ui_mode)
+        index_items.append((output_path, get_document_title(document)))
+    export_vault_index(root, index_items, ui_mode)
     return 0
 
 

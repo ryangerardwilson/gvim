@@ -4,8 +4,9 @@ from __future__ import annotations
 
 import base64
 import re
-from urllib.parse import quote
 from pathlib import Path
+from typing import Any, cast
+from urllib.parse import quote
 
 import py_runner
 from design_constants import colors_for, font
@@ -38,13 +39,16 @@ def export_document(
 
 def export_vault_index(
     root: Path,
-    html_paths: list[Path],
+    items: list[tuple[Path, str | None]],
     ui_mode: str = "dark",
     title: str | None = None,
 ) -> None:
-    rel_paths = [path.relative_to(root) for path in html_paths]
-    index_title = title or f"GVIM Index - {root.name}"
-    html = _build_index_html(rel_paths, ui_mode, index_title)
+    rel_items: list[tuple[Path, str]] = []
+    for path, doc_title in items:
+        rel_path = path.relative_to(root)
+        rel_items.append((rel_path, doc_title or rel_path.stem or rel_path.name))
+    index_title = title or "Index"
+    html = _build_index_html(rel_items, ui_mode, index_title)
     (root / "index.html").write_text(html, encoding="utf-8")
 
 
@@ -473,7 +477,7 @@ def _slugify_heading(text: str) -> str:
     return slug_text or "section"
 
 
-def _build_index_html(paths: list[Path], ui_mode: str, title: str) -> str:
+def _build_index_html(paths: list[tuple[Path, str]], ui_mode: str, title: str) -> str:
     dark = colors_for("dark")
     light = colors_for("light")
     tree = _build_index_tree(paths)
@@ -603,23 +607,26 @@ def _build_index_html(paths: list[Path], ui_mode: str, title: str) -> str:
     )
 
 
-def _build_index_tree(paths: list[Path]) -> dict[str, object]:
-    root: dict[str, object] = {"__files__": []}
-    for rel_path in paths:
+def _build_index_tree(paths: list[tuple[Path, str]]) -> dict[str, Any]:
+    root: dict[str, Any] = {"__files__": []}
+    for rel_path, title in paths:
         parts = rel_path.parts
         if not parts:
             continue
-        node = root
+        node: dict[str, Any] = root
         for part in parts[:-1]:
-            if part not in node:
-                node[part] = {"__files__": []}
-            node = node[part]
-        node.setdefault("__files__", []).append((parts[-1], rel_path))
+            child = node.get(part)
+            if not isinstance(child, dict):
+                child = {"__files__": []}
+                node[part] = child
+            node = cast(dict[str, Any], child)
+        files = cast(list[tuple[str, Path, str]], node.setdefault("__files__", []))
+        files.append((parts[-1], rel_path, title))
     return root
 
 
-def _render_index_tree(node: dict[str, object], is_root: bool = False) -> str:
-    files = list(node.get("__files__", []))
+def _render_index_tree(node: dict[str, Any], is_root: bool = False) -> str:
+    files = cast(list[tuple[str, Path, str]], node.get("__files__", []))
     files.sort(key=lambda item: item[0].lower())
     dirs = [key for key in node.keys() if key != "__files__"]
     dirs.sort(key=str.lower)
@@ -628,15 +635,15 @@ def _render_index_tree(node: dict[str, object], is_root: bool = False) -> str:
     ]
     for dirname in dirs:
         lines.append('<li class="dir">')
-        lines.append(f'<div class="dir-name">{_escape_html(dirname)}</div>')
+        lines.append(f'<div class="dir-name">{_escape_html(dirname)}/</div>')
         child = node.get(dirname)
         if isinstance(child, dict):
             lines.append(_render_index_tree(child))
         lines.append("</li>")
-    for filename, rel_path in files:
+    for filename, rel_path, title in files:
         url = _encode_rel_path(rel_path)
         lines.append(
-            f'<li class="file"><a href="{url}">{_escape_html(filename)}</a></li>'
+            f'<li class="file"><a href="{url}">{_escape_html(title)}</a></li>'
         )
     lines.append("</ul>")
     return "\n".join(lines)
