@@ -567,10 +567,6 @@ class Orchestrator:
         if root is None:
             self._show_status("Deploy requires a configured vault", "error")
             return
-        export_rc = _run_export_all()
-        if export_rc != 0:
-            self._show_status("Export failed", "error")
-            return
         if shutil.which("git") is None:
             self._show_status("Git not found", "error")
             return
@@ -584,7 +580,11 @@ class Orchestrator:
         self._show_status("Deploying...", "success")
 
         def _worker() -> None:
-            result = _run_git_sync(root, allow_prompt=False)
+            export_rc = _run_export_all_for_root(root)
+            if export_rc != 0:
+                result = export_rc
+            else:
+                result = _run_git_sync(root, allow_prompt=False)
             def _done() -> bool:
                 self._deploy_running = False
                 if result == 0:
@@ -1247,6 +1247,10 @@ def _run_export_all() -> int:
             file=sys.stderr,
         )
         return 1
+    return _run_export_all_for_root(root)
+
+
+def _run_export_all_for_root(root: Path) -> int:
     doc_paths = sorted(root.rglob("*.gvim"))
     if not doc_paths:
         print(f"No .gvim files found under {root}", file=sys.stderr)
