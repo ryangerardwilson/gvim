@@ -136,12 +136,16 @@ class Orchestrator:
                 if self._demo:
                     self._state.document = sample_document()
                 else:
-                    self._state.document = BlockDocument([TextBlock("Untitled", kind="title")])
+                    self._state.document = BlockDocument(
+                        [TextBlock("Untitled", kind="title")]
+                    )
                 self._state.document.set_path(document_path)
                 self._active_vault_root = cwd_vault_root
                 document_io.save(document_path, self._state.document)
             else:
-                self._state.document = BlockDocument([TextBlock("Untitled", kind="title")])
+                self._state.document = BlockDocument(
+                    [TextBlock("Untitled", kind="title")]
+                )
                 vaults = [path for path in config.get_vaults() if path.exists()]
                 if vaults:
                     self._active_vault_root = cwd_vault_root
@@ -154,7 +158,9 @@ class Orchestrator:
         rc = app.run(argv)
         registered = app.get_is_registered()
         remote = app.get_is_remote() if registered else None
-        logging.info("GTK app exit: %s (registered=%s remote=%s)", rc, registered, remote)
+        logging.info(
+            "GTK app exit: %s (registered=%s remote=%s)", rc, registered, remote
+        )
         return rc
 
     def configure_window(self, window: Gtk.ApplicationWindow) -> None:
@@ -406,7 +412,9 @@ class Orchestrator:
         )
         if not toc_exists:
             insert_at = self._state.view.get_selected_index()
-            self._state.document.insert_block_after(insert_at, TextBlock("", kind="toc"))
+            self._state.document.insert_block_after(
+                insert_at, TextBlock("", kind="toc")
+            )
             self._state.view.set_document(self._state.document)
             self._persist_document()
         self._state.view.open_toc_drill(self._state.document)
@@ -533,7 +541,15 @@ class Orchestrator:
             if index < 0 or index >= len(document.blocks):
                 return
             block = document.blocks[index]
-            if isinstance(block, TextBlock) and block.kind in {"title", "h1", "h2", "h3", "h4", "h5", "h6"}:
+            if isinstance(block, TextBlock) and block.kind in {
+                "title",
+                "h1",
+                "h2",
+                "h3",
+                "h4",
+                "h5",
+                "h6",
+            }:
                 view.refresh_toc(document)
             return
         view.reload_media_at(index)
@@ -615,6 +631,7 @@ class Orchestrator:
                 result = export_rc
             else:
                 result = _run_git_sync(root, allow_prompt=False)
+
             def _done() -> bool:
                 self._deploy_running = False
                 if result == 0:
@@ -622,6 +639,7 @@ class Orchestrator:
                 else:
                     self._show_status("Deploy failed", "error")
                 return False
+
             GLib.idle_add(_done)
 
         threading.Thread(target=_worker, daemon=True).start()
@@ -694,7 +712,9 @@ class Orchestrator:
                 source, python_path, render_format, ui_mode="light"
             )
             GLib.idle_add(
-                lambda: self._apply_python_image_render(index, source, dark, light, token)
+                lambda: self._apply_python_image_render(
+                    index, source, dark, light, token
+                )
             )
 
         thread = threading.Thread(target=_run, daemon=True)
@@ -750,7 +770,7 @@ class Orchestrator:
         block = document.blocks[index]
         if not isinstance(block, PythonImageBlock):
             return
-        header = f"\"\"\"\nLAST RUNTIME ERROR: {error}\n\"\"\"\n"
+        header = f'"""\nLAST RUNTIME ERROR: {error}\n"""\n'
         source = self._strip_pyimage_error(block.source)
         document.set_python_image_block(index, f"{header}{source}")
 
@@ -932,7 +952,6 @@ def _get_venv_python() -> str | None:
     return None
 
 
-
 def _prompt_ui_mode_cli() -> str | None:
     try:
         text = input("UI mode (dark/light, leave blank for dark): ").strip().lower()
@@ -958,9 +977,7 @@ def parse_args(
         "--export",
         nargs="?",
         const="__default__",
-        help=(
-            "Export all .gvim recursively from the current vault"
-        ),
+        help=("Export all .gvim recursively from the current vault"),
     )
     parser.add_argument(
         "-q",
@@ -1223,9 +1240,7 @@ def _git_push(root: Path) -> bool:
 
 def _prompt_pages_setup() -> bool:
     try:
-        answer = input(
-            "Set up GitHub Pages deployment (public site)? (y/N): "
-        ).strip()
+        answer = input("Set up GitHub Pages deployment (public site)? (y/N): ").strip()
     except EOFError:
         return False
     return answer.lower() in {"y", "yes"}
@@ -1329,9 +1344,15 @@ def _run_export_all_for_root(root: Path) -> int:
 
 def _run_export(output_path: str, input_path: str | None) -> int:
     if input_path:
-        print("Export requires running inside a configured vault; omit the input path.", file=sys.stderr)
+        print(
+            "Export requires running inside a configured vault; omit the input path.",
+            file=sys.stderr,
+        )
         return 1
     if output_path != "__default__":
-        print("Export does not accept a custom output path; use gvim -e from the vault root.", file=sys.stderr)
+        print(
+            "Export does not accept a custom output path; use gvim -e from the vault root.",
+            file=sys.stderr,
+        )
         return 1
     return _run_export_all()

@@ -330,14 +330,14 @@ _PY_GUIDANCE = (
     "    x=np.linspace(-5, 5, 100),\n"
     "    y1=lambda x: 0.5 * x + 1,\n"
     "    y2=lambda x: 0.3 * x + 2,\n"
-    "    title=\"My Plot\"\n"
+    '    title="My Plot"\n'
     ")\n"
     "\n"
     '"""\n'
     "HELPER DOCS \n"
     "-----------\n"
     "\n"
-    "plot_coord((2, 3), (4, 5), title=\"My Plot\")\n"
+    'plot_coord((2, 3), (4, 5), title="My Plot")\n'
     "# Types: \n"
     "- plot_coord: coords = tuple[float, float]\n"
     "- title = str | None\n"
@@ -347,7 +347,7 @@ _PY_GUIDANCE = (
     "    y1=lambda x: 0.5 * x + 1,\n"
     "    y2=lambda x: 0.3 * x + 2,\n"
     "    y3_custom_name=lambda x: 0.4 * x + 4,\n"
-    "    title=\"My Plot\"\n"
+    '    title="My Plot"\n'
     ")\n"
     "# Types: \n"
     "- plot_func: x = sequence[float] \n"
@@ -362,7 +362,7 @@ _PY_SAMPLE = (
     "    x=np.linspace(-5, 5, 100),\n"
     "    y1=lambda x: 0.5 * x + 1,\n"
     "    y2=lambda x: 0.3 * x + 2,\n"
-    "    title=\"My Plot\"\n"
+    '    title="My Plot"\n'
     ")\n"
 )
 

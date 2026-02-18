@@ -1252,7 +1252,14 @@ class BlockEditorView(Gtk.Box):
         entries: list[OutlineEntry] = []
         depth_map = {"h1": 0, "h2": 1, "h3": 2, "h4": 3, "h5": 4, "h6": 5}
         for index, block in enumerate(document.blocks):
-            if isinstance(block, TextBlock) and block.kind in {"h1", "h2", "h3", "h4", "h5", "h6"}:
+            if isinstance(block, TextBlock) and block.kind in {
+                "h1",
+                "h2",
+                "h3",
+                "h4",
+                "h5",
+                "h6",
+            }:
                 text = block.text.strip().splitlines()[0] if block.text.strip() else ""
                 if not text:
                     continue
@@ -1513,7 +1520,7 @@ class BlockEditorView(Gtk.Box):
         panel.append(scroller)
 
         self._help_scroller = scroller
-        
+
         overlay.append(panel)
         return overlay
 
@@ -1884,7 +1891,14 @@ def _three_module_uri() -> str:
 def _build_toc(blocks: Sequence[TextBlock]) -> str:
     headings = []
     for block in blocks:
-        if isinstance(block, TextBlock) and block.kind in {"h1", "h2", "h3", "h4", "h5", "h6"}:
+        if isinstance(block, TextBlock) and block.kind in {
+            "h1",
+            "h2",
+            "h3",
+            "h4",
+            "h5",
+            "h6",
+        }:
             text = block.text.strip().splitlines()[0] if block.text.strip() else ""
             if text:
                 headings.append((block.kind, text))

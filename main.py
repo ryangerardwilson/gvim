@@ -19,9 +19,7 @@ def _init_logging() -> tuple[Path, IO[str]]:
     log_path.parent.mkdir(parents=True, exist_ok=True)
     log_stream = open(log_path, "a", buffering=1, encoding="utf-8")
     handler = logging.StreamHandler(log_stream)
-    handler.setFormatter(
-        logging.Formatter("%(asctime)s %(levelname)s %(message)s")
-    )
+    handler.setFormatter(logging.Formatter("%(asctime)s %(levelname)s %(message)s"))
     root = logging.getLogger()
     root.setLevel(logging.INFO)
     root.handlers.clear()
@@ -60,7 +58,11 @@ def main(argv: Sequence[str] | None = None) -> int:
     logging.info("GVIM start")
     logging.info("Log file: %s", log_path)
     logging.info("Args: %s", list(argv) if argv is not None else sys.argv[1:])
-    logging.info("Env DISPLAY=%s WAYLAND_DISPLAY=%s", os.environ.get("DISPLAY"), os.environ.get("WAYLAND_DISPLAY"))
+    logging.info(
+        "Env DISPLAY=%s WAYLAND_DISPLAY=%s",
+        os.environ.get("DISPLAY"),
+        os.environ.get("WAYLAND_DISPLAY"),
+    )
     try:
         return Orchestrator().run(argv)
     except Exception:

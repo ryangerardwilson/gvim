@@ -371,7 +371,7 @@ def _build_html(
         f'    <script src="{LEAFLET_JS_CDN}"></script>\n'
         "    <script>\n"
         f"      const themeDefault = '{ui_mode}';\n"
-        f"      const indexHref = { _js_string(index_href) if index_href else 'null' };\n"
+        f"      const indexHref = {_js_string(index_href) if index_href else 'null'};\n"
         "      const indexHash = indexHref && indexHref.includes('#') ? indexHref.split('#')[1] : null;\n"
         "      const themeStorageKey = 'gvim-theme';\n"
         "      const root = document.documentElement;\n"
@@ -682,7 +682,14 @@ def _build_toc(document: BlockDocument) -> tuple[str, dict[int, str]]:
     heading_ids: dict[int, str] = {}
     seen: dict[str, int] = {}
     for index, block in enumerate(document.blocks):
-        if isinstance(block, TextBlock) and block.kind in {"h1", "h2", "h3", "h4", "h5", "h6"}:
+        if isinstance(block, TextBlock) and block.kind in {
+            "h1",
+            "h2",
+            "h3",
+            "h4",
+            "h5",
+            "h6",
+        }:
             text = block.text.strip().splitlines()[0] if block.text.strip() else ""
             if not text:
                 continue

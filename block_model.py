@@ -318,7 +318,7 @@ def sample_document() -> BlockDocument:
                 "    x=np.linspace(-5, 5, 100),\n"
                 "    y1=lambda x: 0.5 * x + 1,\n"
                 "    y2=lambda x: 0.3 * x + 2,\n"
-                "    title=\"My Plot\"\n"
+                '    title="My Plot"\n'
                 ")\n",
                 format="svg",
             ),

@@ -125,9 +125,7 @@ class LoadingScreen:
         palette = colors_for(self._ui_mode)
         bg_rgba = Gdk.RGBA()
         bg_rgba.parse(palette.loading_background)
-        cr.set_source_rgba(
-            bg_rgba.red, bg_rgba.green, bg_rgba.blue, bg_rgba.alpha
-        )
+        cr.set_source_rgba(bg_rgba.red, bg_rgba.green, bg_rgba.blue, bg_rgba.alpha)
         cr.rectangle(0, 0, width, height)
         cr.fill()
 
@@ -164,7 +162,9 @@ def _normalize_ascii_logo(logo: str) -> str:
     if not lines:
         return logo
     left_trimmed = [line.lstrip(" ") for line in lines]
-    left_indent = [len(line) - len(trimmed) for line, trimmed in zip(lines, left_trimmed)]
+    left_indent = [
+        len(line) - len(trimmed) for line, trimmed in zip(lines, left_trimmed)
+    ]
     min_indent = min(left_indent) if left_indent else 0
     trimmed_lines = [line[min_indent:] for line in lines]
     line_lengths = [len(line.rstrip(" ")) for line in trimmed_lines]
