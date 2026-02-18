@@ -40,7 +40,12 @@ def insert_text_block(state: AppState, kind: str = "body") -> bool:
     elif kind == "h6":
         placeholder = "Heading6"
     state.document.insert_block_after(insert_at, TextBlock(placeholder, kind=kind))
-    state.view.set_document(state.document)
+    inserted_index = min(insert_at + 1, len(state.document.blocks) - 1)
+    inserted_block = state.document.blocks[inserted_index]
+    scroll_position = state.view.get_scroll_position()
+    state.view.insert_widget_after(insert_at, inserted_block, state.document)
+    state.view.set_selected_index(inserted_index)
+    state.view.set_scroll_position(scroll_position)
     return True
 
 
@@ -54,7 +59,12 @@ def insert_toc_block(state: AppState) -> bool:
             return True
     insert_at = state.view.get_selected_index()
     state.document.insert_block_after(insert_at, TextBlock("", kind="toc"))
-    state.view.set_document(state.document)
+    inserted_index = min(insert_at + 1, len(state.document.blocks) - 1)
+    inserted_block = state.document.blocks[inserted_index]
+    scroll_position = state.view.get_scroll_position()
+    state.view.insert_widget_after(insert_at, inserted_block, state.document)
+    state.view.set_selected_index(inserted_index)
+    state.view.set_scroll_position(scroll_position)
     return True
 
 
@@ -74,8 +84,12 @@ def insert_three_block(state: AppState) -> bool:
             )
         ),
     )
-    state.view.set_document(state.document)
-    state.view.move_selection(1)
+    inserted_index = min(insert_at + 1, len(state.document.blocks) - 1)
+    inserted_block = state.document.blocks[inserted_index]
+    scroll_position = state.view.get_scroll_position()
+    state.view.insert_widget_after(insert_at, inserted_block, state.document)
+    state.view.set_selected_index(inserted_index)
+    state.view.set_scroll_position(scroll_position)
     return True
 
 
@@ -87,8 +101,12 @@ def insert_python_image_block(state: AppState) -> bool:
     state.document.insert_block_after(
         insert_at, PythonImageBlock(template, format="svg")
     )
-    state.view.set_document(state.document)
-    state.view.move_selection(1)
+    inserted_index = min(insert_at + 1, len(state.document.blocks) - 1)
+    inserted_block = state.document.blocks[inserted_index]
+    scroll_position = state.view.get_scroll_position()
+    state.view.insert_widget_after(insert_at, inserted_block, state.document)
+    state.view.set_selected_index(inserted_index)
+    state.view.set_scroll_position(scroll_position)
     return True
 
 
@@ -98,8 +116,12 @@ def insert_latex_block(state: AppState) -> bool:
     insert_at = state.view.get_selected_index()
     template = r"\int_0^\infty e^{-x^2} dx = \frac{\sqrt{\pi}}{2}"
     state.document.insert_block_after(insert_at, LatexBlock(template))
-    state.view.set_document(state.document)
-    state.view.move_selection(1)
+    inserted_index = min(insert_at + 1, len(state.document.blocks) - 1)
+    inserted_block = state.document.blocks[inserted_index]
+    scroll_position = state.view.get_scroll_position()
+    state.view.insert_widget_after(insert_at, inserted_block, state.document)
+    state.view.set_selected_index(inserted_index)
+    state.view.set_scroll_position(scroll_position)
     return True
 
 
@@ -128,8 +150,12 @@ def insert_map_block(state: AppState) -> bool:
     )
     template = _prepend_guidance("map", template)
     state.document.insert_block_after(insert_at, MapBlock(template))
-    state.view.set_document(state.document)
-    state.view.move_selection(1)
+    inserted_index = min(insert_at + 1, len(state.document.blocks) - 1)
+    inserted_block = state.document.blocks[inserted_index]
+    scroll_position = state.view.get_scroll_position()
+    state.view.insert_widget_after(insert_at, inserted_block, state.document)
+    state.view.set_selected_index(inserted_index)
+    state.view.set_scroll_position(scroll_position)
     return True
 
 
