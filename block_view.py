@@ -234,11 +234,6 @@ class BlockEditorView(Gtk.Box):
         self._column.queue_resize()
         GLib.idle_add(self._column.queue_resize)
 
-    def force_layout_refresh(self) -> bool:
-        self._column.queue_resize()
-        self._column.queue_draw()
-        return False
-
     def _tick_column_padding(self, _widget: Gtk.Widget, _frame_clock) -> bool:
         width = self._scroller.get_allocated_width()
         if width <= 0:
@@ -1553,8 +1548,8 @@ class _TextBlockView(Gtk.Frame):
             self._text_view.set_top_margin(10)
             self._text_view.set_bottom_margin(8)
         else:
-            self._text_view.set_top_margin(6)
-            self._text_view.set_bottom_margin(4)
+            self._text_view.set_top_margin(12)
+            self._text_view.set_bottom_margin(12)
         self._text_view.set_left_margin(12)
         self._text_view.set_right_margin(12)
         if kind in {"title", "h1", "h2", "h3"}:
