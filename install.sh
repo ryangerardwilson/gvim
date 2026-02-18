@@ -82,8 +82,25 @@ install_system_deps() {
   esac
 }
 
+venv_ok() {
+  [[ -x "$VENV_DIR/bin/python" ]] || return 1
+  "$VENV_DIR/bin/python" -c "import gi; gi.require_version('Gtk','4.0')" >/dev/null 2>&1 || return 1
+  "$VENV_DIR/bin/python" -c "import numpy, matplotlib, pandas" >/dev/null 2>&1 || return 1
+  return 0
+}
+
+system_deps_ok() {
+  command -v python3 >/dev/null 2>&1 || return 1
+  python3 -c "import gi; gi.require_version('Gtk','4.0')" >/dev/null 2>&1 || return 1
+  return 0
+}
+
 setup_venv() {
   command -v python3 >/dev/null 2>&1 || die "python3 is required"
+  if venv_ok; then
+    info "Using existing venv at $VENV_DIR"
+    return
+  fi
   rm -rf "$VENV_DIR"
   python3 -m venv "$VENV_DIR"
   "$VENV_DIR/bin/python" -m pip install --upgrade pip setuptools wheel
@@ -235,7 +252,12 @@ else
   installed_label="$version_label"
 fi
 
-install_system_deps
+if system_deps_ok; then
+  info "System deps already present; skipping system install"
+else
+  install_system_deps
+fi
+
 setup_venv
 
 cat > "$INSTALL_DIR/$APP" <<'EOF'
@@ -244,8 +266,12 @@ set -euo pipefail
 APP=gvim
 PYTHON_BIN="${HOME}/.${APP}/venv/bin/python"
 if [[ ! -x "$PYTHON_BIN" ]]; then
-  echo "GVIM venv missing. Reinstall with install.sh." >&2
-  exit 1
+  if command -v python3 >/dev/null 2>&1; then
+    PYTHON_BIN="python3"
+  else
+    echo "GVIM venv missing. Reinstall with install.sh." >&2
+    exit 1
+  fi
 fi
 case "${1:-}" in
   init|-v|--version|-h|--help|-u|--upgrade)
