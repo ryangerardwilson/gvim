@@ -1545,19 +1545,19 @@ class _TextBlockView(Gtk.Frame):
         self._text_view.set_monospace(True)
         self._text_view.set_wrap_mode(Gtk.WrapMode.WORD_CHAR)
         if kind in {"title", "h1", "h2", "h3"}:
-            self._text_view.set_top_margin(18)
-            self._text_view.set_bottom_margin(14)
+            self._text_view.set_top_margin(10)
+            self._text_view.set_bottom_margin(8)
         else:
-            self._text_view.set_top_margin(12)
-            self._text_view.set_bottom_margin(12)
+            self._text_view.set_top_margin(8)
+            self._text_view.set_bottom_margin(8)
         self._text_view.set_left_margin(12)
         self._text_view.set_right_margin(12)
         if kind in {"title", "h1", "h2", "h3"}:
-            self._text_view.set_pixels_above_lines(4)
-            self._text_view.set_pixels_below_lines(4)
+            self._text_view.set_pixels_above_lines(1)
+            self._text_view.set_pixels_below_lines(1)
         else:
-            self._text_view.set_pixels_above_lines(0)
-            self._text_view.set_pixels_below_lines(0)
+            self._text_view.set_pixels_above_lines(1)
+            self._text_view.set_pixels_below_lines(1)
         self._text_view.set_pixels_inside_wrap(0)
         self._text_view.set_editable(False)
         self._text_view.set_cursor_visible(False)
