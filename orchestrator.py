@@ -776,6 +776,10 @@ class Orchestrator:
         if self._startup_pyimage_pending:
             return False
         self._startup_loading.finish_when_ready()
+        if self._state.view is not None:
+            GLib.idle_add(self._state.view.force_layout_refresh)
+            GLib.timeout_add(16, self._state.view.force_layout_refresh)
+            GLib.timeout_add(48, self._state.view.force_layout_refresh)
         self._startup_loading = None
         return False
 
