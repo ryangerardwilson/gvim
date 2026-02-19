@@ -1352,7 +1352,23 @@ def _run_export_all_for_root(root: Path) -> int:
         )
 
     export_vault_index(root, index_items, ui_mode)
+    _cleanup_orphan_html(root, [path for path, _title in index_items])
     return 0
+
+
+def _cleanup_orphan_html(root: Path, html_paths: list[Path]) -> None:
+    keep = {path.resolve() for path in html_paths}
+    index_path = (root / "index.html").resolve()
+    for html_path in root.rglob("*.html"):
+        resolved = html_path.resolve()
+        if resolved == index_path:
+            continue
+        if resolved in keep:
+            continue
+        try:
+            html_path.unlink()
+        except OSError:
+            continue
 
 
 def _run_export(output_path: str, input_path: str | None) -> int:
