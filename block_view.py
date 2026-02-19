@@ -67,6 +67,7 @@ class VaultAction:
     close: bool = False
     toggle_theme: bool = False
     locked: bool = False
+    deploy: bool = False
 
 
 class _TocBlockView(Gtk.Frame):
@@ -780,6 +781,8 @@ class BlockEditorView(Gtk.Box):
             if entry.kind == "file":
                 return VaultAction(True, opened_path=entry.path)
             return VaultAction(True)
+        if action == "deploy_sync":
+            return VaultAction(True, deploy=True)
         if action == "copy":
             self._vault_copy_selected()
             return VaultAction(True)

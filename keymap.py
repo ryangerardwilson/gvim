@@ -108,6 +108,7 @@ DEFAULT_KEYMAP: dict[str, Any] = {
             "paste": "p",
             "new_entry": "<leader>n",
             "rename": "<leader>rn",
+            "deploy_sync": "<C-d>",
             "toggle_theme": "<leader>m",
         },
         "help": {
@@ -217,6 +218,12 @@ _HELP_SECTIONS = [
             {"type": "single", "mode": "vault", "a": "copy", "label": "copy"},
             {"type": "single", "mode": "vault", "a": "cut", "label": "cut"},
             {"type": "single", "mode": "vault", "a": "paste", "label": "paste"},
+            {
+                "type": "single",
+                "mode": "vault",
+                "a": "deploy_sync",
+                "label": "deploy (git sync)",
+            },
             {
                 "type": "single",
                 "mode": "vault",

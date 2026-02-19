@@ -237,6 +237,8 @@ class Orchestrator:
                 self._vault_locked = True
             if action.locked:
                 self._show_status("Vault locked for session", "success")
+            if action.deploy:
+                self._deploy_sync()
             if action.toggle_theme:
                 self._toggle_ui_mode()
             return action.handled
