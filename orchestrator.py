@@ -232,6 +232,9 @@ class Orchestrator:
                 self._close_vault_mode()
             elif action.close:
                 self._close_vault_mode()
+            if action.selected_vault_root is not None:
+                self._active_vault_root = action.selected_vault_root
+                self._vault_locked = True
             if action.locked:
                 self._show_status("Vault locked for session", "success")
             if action.toggle_theme:

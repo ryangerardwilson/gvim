@@ -63,6 +63,7 @@ class VaultEntry:
 class VaultAction:
     handled: bool
     opened_path: Path | None = None
+    selected_vault_root: Path | None = None
     close: bool = False
     toggle_theme: bool = False
     locked: bool = False
@@ -770,7 +771,7 @@ class BlockEditorView(Gtk.Box):
                 self._vault_locked = True
                 self._vault_selected = 0
                 self._render_vault_entries()
-                return VaultAction(True)
+                return VaultAction(True, selected_vault_root=entry.path)
             if entry.kind == "dir":
                 self._vault_path = entry.path
                 self._vault_selected = 0
