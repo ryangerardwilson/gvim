@@ -242,6 +242,7 @@ def paste_after_selected(state: AppState, block: Block) -> bool:
     inserted_block = state.document.blocks[inserted_index]
     state.view.insert_widget_after(insert_at, inserted_block, state.document)
     state.view.set_selected_index(inserted_index)
+    state.view.reload_media_at(inserted_index)
     return True
 
 
@@ -257,6 +258,7 @@ def paste_after_selected_range(state: AppState, blocks: list[Block]) -> bool:
         inserted_index = min(current_index + 1, len(state.document.blocks) - 1)
         inserted_block = state.document.blocks[inserted_index]
         state.view.insert_widget_after(current_index, inserted_block, state.document)
+        state.view.reload_media_at(inserted_index)
         current_index = inserted_index
     state.view.set_selected_index(current_index)
     return True
