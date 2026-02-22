@@ -1821,6 +1821,7 @@ class _LatexBlockView(Gtk.Frame):
 
         self.view = None
         self._html = None
+        self._pending_load = False
         self._box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
         _apply_block_padding(self._box)
 
@@ -1859,7 +1860,12 @@ class _LatexBlockView(Gtk.Frame):
         view.set_size_request(-1, 80)
         view.set_valign(Gtk.Align.START)
         self._html = render_latex_html(source, ui_mode)
-        view.load_html(self._html, "file:///")
+        self._pending_load = True
+        if hasattr(view, "get_mapped") and view.get_mapped():
+            view.load_html(self._html, "file:///")
+            self._pending_load = False
+        else:
+            view.connect("map", self._on_map_load_html)
         if hasattr(view, "connect") and hasattr(view, "run_javascript"):
             view.connect("load-changed", self._on_latex_load_changed)
         self.view = view
@@ -1869,6 +1875,9 @@ class _LatexBlockView(Gtk.Frame):
     def reload_html(self) -> None:
         if self.view is None or self._html is None:
             return
+        if hasattr(self.view, "get_mapped") and not self.view.get_mapped():
+            self._pending_load = True
+            return
         self.view.load_html(self._html, "file:///")
 
     def update_latex(self, source: str, ui_mode: str) -> None:
@@ -1876,7 +1885,19 @@ class _LatexBlockView(Gtk.Frame):
         if self.view is None:
             return
         self._html = render_latex_html(source, ui_mode)
+        if hasattr(self.view, "get_mapped") and not self.view.get_mapped():
+            self._pending_load = True
+            return
         self.view.load_html(self._html, "file:///")
+
+    def _on_map_load_html(self, view: Gtk.Widget) -> None:
+        if not self._pending_load:
+            return
+        if self._html is None:
+            return
+        if hasattr(view, "load_html"):
+            view.load_html(self._html, "file:///")
+        self._pending_load = False
 
 
 class _MapBlockView(Gtk.Frame):
