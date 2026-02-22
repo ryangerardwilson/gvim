@@ -16,3 +16,4 @@ class AppState:
     active_editor: EditorSession | None = None
     last_doc_key: int | None = None
     clipboard_block: Block | None = None
+    clipboard_blocks: list[Block] | None = None

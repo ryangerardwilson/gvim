@@ -91,6 +91,11 @@ window {
   background: var(--block-selected-background);
 }
 
+.block-selected-range {
+  border: 0;
+  background: var(--block-selected-background);
+}
+
 .help-overlay {
   pointer-events: none;
 }

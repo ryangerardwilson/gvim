@@ -95,6 +95,7 @@ System dependencies are required for PyGObject and GTK4. The installer uses
 - `dd` — cut the selected block.
 - `yy` — yank the selected block.
 - `p` — paste the clipboard block after the selection.
+- `v` — visual mode to select multiple blocks with `j/k`, then `d` or `y`.
 - `Enter` — open the selected text or code block in Vim.
 - `Enter` on a TOC block — open the outline drill.
 - Exit Vim — refreshes the block content in GTK.

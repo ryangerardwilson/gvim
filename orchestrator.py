@@ -256,6 +256,28 @@ class Orchestrator:
         token = keymap.event_to_token(keyval, state)
         if token is None:
             return False
+        if self._state.view is not None and self._state.view.visual_active():
+            action, handled = self._keymap.match("visual", token)
+            if not handled:
+                return False
+            if action is None:
+                return True
+            if action == "move_down":
+                self._state.view.visual_move(1)
+                return True
+            if action == "move_up":
+                self._state.view.visual_move(-1)
+                return True
+            if action == "delete_range":
+                return self._dispatch_doc_action("delete_block")
+            if action == "yank_range":
+                return self._dispatch_doc_action("yank_block")
+            if action == "paste_block":
+                return self._dispatch_doc_action("paste_block")
+            if action == "exit_visual":
+                self._state.view.exit_visual_mode()
+                return True
+            return False
         action, handled = self._keymap.match("document", token)
         if not handled:
             return False
@@ -269,11 +291,17 @@ class Orchestrator:
         if action == "move_up":
             return actions.move_selection(self._state, -1)
         if action == "move_block_down":
+            if self._state.view is not None and self._state.view.visual_active():
+                self._state.view.visual_move(1)
+                return True
             if actions.move_block(self._state, 1):
                 self._persist_document()
                 return True
             return False
         if action == "move_block_up":
+            if self._state.view is not None and self._state.view.visual_active():
+                self._state.view.visual_move(-1)
+                return True
             if actions.move_block(self._state, -1):
                 self._persist_document()
                 return True
@@ -284,6 +312,11 @@ class Orchestrator:
             return actions.select_last(self._state)
         if action == "open_editor":
             return self._open_selected_block_editor()
+        if action == "visual_toggle":
+            if self._state.view is None:
+                return False
+            self._state.view.toggle_visual_mode()
+            return True
         if action == "quit_no_save":
             self._quit()
             return True
@@ -304,30 +337,63 @@ class Orchestrator:
                 self._state.view.toggle_help()
             return True
         if action == "paste_block":
-            if self._state.clipboard_block is None:
+            if self._state.clipboard_block is None and not self._state.clipboard_blocks:
                 self._show_status("Nothing to paste", "error")
                 return True
-            if actions.paste_after_selected(self._state, self._state.clipboard_block):
+            if self._state.clipboard_blocks:
+                if actions.paste_after_selected_range(
+                    self._state, self._state.clipboard_blocks
+                ):
+                    self._show_status("Pasted blocks", "success")
+                    self._persist_document()
+                else:
+                    self._show_status("Paste failed", "error")
+                return True
+            if self._state.clipboard_block is not None and actions.paste_after_selected(
+                self._state, self._state.clipboard_block
+            ):
                 self._show_status("Pasted block", "success")
                 self._persist_document()
             else:
                 self._show_status("Paste failed", "error")
             return True
         if action == "delete_block":
+            if self._state.view is not None and self._state.view.visual_active():
+                deleted_blocks = actions.delete_selected_range(self._state)
+                if deleted_blocks is None:
+                    self._show_status("Nothing to delete", "error")
+                    return True
+                self._state.clipboard_blocks = deleted_blocks
+                self._state.clipboard_block = None
+                self._show_status("Deleted blocks", "success")
+                self._persist_document()
+                return True
             deleted = actions.delete_selected_block(self._state)
             if deleted is None:
                 self._show_status("Nothing to delete", "error")
                 return True
             self._state.clipboard_block = deleted
+            self._state.clipboard_blocks = None
             self._show_status("Deleted block", "success")
             self._persist_document()
             return True
         if action == "yank_block":
+            if self._state.view is not None and self._state.view.visual_active():
+                yanked_blocks = actions.yank_selected_range(self._state)
+                if yanked_blocks is None:
+                    self._show_status("Nothing to yank", "error")
+                    return True
+                self._state.clipboard_blocks = yanked_blocks
+                self._state.clipboard_block = None
+                self._state.view.exit_visual_mode()
+                self._show_status("Yanked blocks", "success")
+                return True
             yanked = actions.yank_selected_block(self._state)
             if yanked is None:
                 self._show_status("Nothing to yank", "error")
                 return True
             self._state.clipboard_block = yanked
+            self._state.clipboard_blocks = None
             self._show_status("Yanked block", "success")
             return True
         if action == "toggle_theme":

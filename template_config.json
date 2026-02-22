@@ -36,6 +36,14 @@
         "insert_latex": "<leader>bltx",
         "insert_map": "<leader>bmap"
       },
+      "visual": {
+        "move_down": "j",
+        "move_up": "k",
+        "delete_range": "d",
+        "yank_range": "y",
+        "exit_visual": "v",
+        "paste_block": "p"
+      },
       "toc": {
         "move_down": "j",
         "move_up": "k",

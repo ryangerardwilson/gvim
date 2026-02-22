@@ -63,6 +63,7 @@ DEFAULT_KEYMAP: dict[str, Any] = {
             "open_editor": "<CR>",
             "quit_no_save": "q",
             "quit": "<C-q>",
+            "visual_toggle": "v",
             "export_html": "<C-e>",
             "deploy_sync": "<C-d>",
             "help_toggle": "?",
@@ -85,6 +86,14 @@ DEFAULT_KEYMAP: dict[str, Any] = {
             "insert_pyimage": "<leader>bpy",
             "insert_latex": "<leader>bltx",
             "insert_map": "<leader>bmap",
+        },
+        "visual": {
+            "move_down": "j",
+            "move_up": "k",
+            "delete_range": "d",
+            "yank_range": "y",
+            "exit_visual": "v",
+            "paste_block": "p",
         },
         "toc": {
             "move_down": "j",
@@ -188,6 +197,12 @@ _HELP_SECTIONS = [
             {
                 "type": "single",
                 "mode": "document",
+                "a": "visual_toggle",
+                "label": "visual mode",
+            },
+            {
+                "type": "single",
+                "mode": "document",
                 "a": "quit_no_save",
                 "label": "quit",
             },
@@ -197,6 +212,16 @@ _HELP_SECTIONS = [
                 "a": "quit",
                 "label": "quit",
             },
+        ],
+    ),
+    (
+        "Visual",
+        [
+            {"type": "pair", "mode": "visual", "a": "move_down", "b": "move_up", "label": "expand selection"},
+            {"type": "single", "mode": "visual", "a": "yank_range", "label": "yank selection"},
+            {"type": "single", "mode": "visual", "a": "delete_range", "label": "delete selection"},
+            {"type": "single", "mode": "visual", "a": "paste_block", "label": "paste"},
+            {"type": "single", "mode": "visual", "a": "exit_visual", "label": "exit visual"},
         ],
     ),
     (

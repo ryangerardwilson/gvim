@@ -137,6 +137,9 @@ class BlockEditorView(Gtk.Box):
 
         self._block_widgets: list[Gtk.Widget] = []
         self._selected_index = 0
+        self._visual_active = False
+        self._visual_anchor = 0
+        self._visual_end = 0
 
         self._column = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=0)
         self._column.set_margin_top(24)
@@ -336,6 +339,41 @@ class BlockEditorView(Gtk.Box):
         self._selected_index = max(
             0, min(self._selected_index + delta, len(self._block_widgets) - 1)
         )
+        self._refresh_selection()
+        self._schedule_scroll_to_selected()
+
+    def visual_active(self) -> bool:
+        return self._visual_active
+
+    def toggle_visual_mode(self) -> None:
+        if not self._block_widgets:
+            return
+        if self._visual_active:
+            self.exit_visual_mode()
+            return
+        self._visual_active = True
+        self._visual_anchor = self._selected_index
+        self._visual_end = self._selected_index
+        self._refresh_selection()
+
+    def exit_visual_mode(self) -> None:
+        if not self._visual_active:
+            return
+        self._visual_active = False
+        self._refresh_selection()
+
+    def get_visual_range(self) -> tuple[int, int]:
+        start = min(self._visual_anchor, self._visual_end)
+        end = max(self._visual_anchor, self._visual_end)
+        return start, end
+
+    def visual_move(self, delta: int) -> None:
+        if not self._visual_active:
+            return
+        self._visual_end = max(
+            0, min(self._visual_end + delta, len(self._block_widgets) - 1)
+        )
+        self._selected_index = self._visual_end
         self._refresh_selection()
         self._schedule_scroll_to_selected()
 
@@ -1480,10 +1518,19 @@ class BlockEditorView(Gtk.Box):
 
     def _refresh_selection(self) -> None:
         for index, widget in enumerate(self._block_widgets):
+            in_range = False
+            if self._visual_active:
+                start, end = self.get_visual_range()
+                in_range = start <= index <= end
             if index == self._selected_index:
                 widget.add_css_class("block-selected")
+                widget.remove_css_class("block-selected-range")
+            elif in_range:
+                widget.remove_css_class("block-selected")
+                widget.add_css_class("block-selected-range")
             else:
                 widget.remove_css_class("block-selected")
+                widget.remove_css_class("block-selected-range")
 
     def _schedule_scroll_to_selected(self) -> None:
         if self._scroll_idle_id is not None:

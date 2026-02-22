@@ -170,6 +170,9 @@ def insert_map_block(state: AppState) -> bool:
 def move_selection(state: AppState, delta: int) -> bool:
     if state.view is None:
         return False
+    if state.view.visual_active():
+        state.view.visual_move(delta)
+        return True
     state.view.move_selection(delta)
     return True
 
@@ -205,6 +208,31 @@ def delete_selected_block(state: AppState) -> Block | None:
     return block
 
 
+def delete_selected_range(state: AppState) -> list[Block] | None:
+    if state.document is None or state.view is None:
+        return None
+    if not state.document.blocks:
+        return None
+    if not state.view.visual_active():
+        return None
+    start, end = state.view.get_visual_range()
+    deleted: list[Block] = []
+    for index in range(end, start - 1, -1):
+        block = state.document.remove_block(index)
+        if block is not None:
+            deleted.append(block)
+            state.view.remove_widget_at(index, state.document)
+    deleted.reverse()
+    if state.document.blocks:
+        state.view.set_selected_index(
+            min(start, len(state.document.blocks) - 1), scroll=True
+        )
+    else:
+        state.view.clear_selection()
+    state.view.exit_visual_mode()
+    return deleted
+
+
 def paste_after_selected(state: AppState, block: Block) -> bool:
     if state.document is None or state.view is None:
         return False
@@ -214,6 +242,23 @@ def paste_after_selected(state: AppState, block: Block) -> bool:
     inserted_block = state.document.blocks[inserted_index]
     state.view.insert_widget_after(insert_at, inserted_block, state.document)
     state.view.set_selected_index(inserted_index)
+    return True
+
+
+def paste_after_selected_range(state: AppState, blocks: list[Block]) -> bool:
+    if state.document is None or state.view is None:
+        return False
+    if not blocks:
+        return False
+    insert_at = state.view.get_selected_index()
+    current_index = insert_at
+    for block in blocks:
+        state.document.insert_block_after(current_index, copy.deepcopy(block))
+        inserted_index = min(current_index + 1, len(state.document.blocks) - 1)
+        inserted_block = state.document.blocks[inserted_index]
+        state.view.insert_widget_after(current_index, inserted_block, state.document)
+        current_index = inserted_index
+    state.view.set_selected_index(current_index)
     return True
 
 
@@ -228,6 +273,24 @@ def yank_selected_block(state: AppState) -> Block | None:
     except IndexError:
         return None
     return copy.deepcopy(block)
+
+
+def yank_selected_range(state: AppState) -> list[Block] | None:
+    if state.document is None or state.view is None:
+        return None
+    if not state.document.blocks:
+        return None
+    if not state.view.visual_active():
+        return None
+    start, end = state.view.get_visual_range()
+    blocks: list[Block] = []
+    for index in range(start, end + 1):
+        try:
+            blocks.append(copy.deepcopy(state.document.blocks[index]))
+        except IndexError:
+            return None
+    state.view.exit_visual_mode()
+    return blocks
 
 
 def select_first(state: AppState) -> bool:
