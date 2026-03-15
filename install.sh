@@ -322,10 +322,10 @@ if [[ ! -x "\$PYTHON_BIN" ]]; then
 fi
 
 case "\${1:-}" in
-  conf|init|-h|--help|-v|--version|-u|--upgrade|-e|--export)
+  conf|init|e|-h|--help|-v|--version|-u|--upgrade)
     exec "\$PYTHON_BIN" "\$APP_MAIN" "\$@"
     ;;
-  -q)
+  q)
     ;;
   -*)
     exec "\$PYTHON_BIN" "\$APP_MAIN" "\$@"

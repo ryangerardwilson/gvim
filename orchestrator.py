@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import argparse
 import logging
 import threading
 import os
@@ -33,6 +32,7 @@ from export_html import (
     export_document,
     export_vault_index,
 )
+from cli_args import CliArgumentError, parse_args
 from design_constants import colors_for, font
 from app_state import AppState
 from block_model import (
@@ -87,13 +87,18 @@ class Orchestrator:
     def run(self, argv: Sequence[str] | None = None) -> int:
         logging.info("Orchestrator run")
         args = list(sys.argv[1:] if argv is None else argv)
-        options, gtk_args = parse_args(args)
-        if options.file == "init":
-            return _run_init()
-        if options.export:
-            return _run_export(options.export, options.file)
+        try:
+            options, gtk_args = parse_args(args)
+        except CliArgumentError as exc:
+            print(str(exc), file=sys.stderr)
+            return 2
 
-        self._demo = options.demo
+        if options.command == "init":
+            return _run_init()
+        if options.command == "export":
+            return _run_export()
+
+        self._demo = options.command == "quickstart"
 
         document_path = Path(options.file).expanduser() if options.file else None
         self._python_path = _get_venv_python()
@@ -110,7 +115,7 @@ class Orchestrator:
         if document_path is not None and document_path.exists():
             if self._demo:
                 print(
-                    "Quickstart only applies to new files; remove -q to open an existing document.",
+                    "Quickstart only applies to new files; remove `q` to open an existing document.",
                     file=sys.stderr,
                 )
                 return 1
@@ -1112,34 +1117,6 @@ def _prompt_ui_mode_cli() -> str | None:
     return None
 
 
-def parse_args(
-    argv: Sequence[str],
-) -> tuple[argparse.Namespace, list[str]]:
-    parser = argparse.ArgumentParser(
-        description="Block-based GTK4 editor with external Vim editing",
-        add_help=False,
-    )
-    parser.add_argument(
-        "-e",
-        "--export",
-        nargs="?",
-        const="__default__",
-        help=("Export all .gvim recursively from the current vault"),
-    )
-    parser.add_argument(
-        "-q",
-        action="store_true",
-        dest="demo",
-        help="Quickstart content for new files",
-    )
-    parser.add_argument("file", nargs="?", help=".gvim document to open")
-    if hasattr(parser, "parse_known_intermixed_args"):
-        args, gtk_args = parser.parse_known_intermixed_args(argv)
-    else:
-        args, gtk_args = parser.parse_known_args(argv)
-    return args, gtk_args
-
-
 def _run_init() -> int:
     root = Path.cwd()
     vaults = [path.resolve() for path in config.get_vaults() if path.exists()]
@@ -1452,17 +1429,5 @@ def _cleanup_orphan_html(root: Path, html_paths: list[Path]) -> None:
             continue
 
 
-def _run_export(output_path: str, input_path: str | None) -> int:
-    if input_path:
-        print(
-            "Export requires running inside a configured vault; omit the input path.",
-            file=sys.stderr,
-        )
-        return 1
-    if output_path != "__default__":
-        print(
-            "Export does not accept a custom output path; use gvim -e from the vault root.",
-            file=sys.stderr,
-        )
-        return 1
+def _run_export() -> int:
     return _run_export_all()

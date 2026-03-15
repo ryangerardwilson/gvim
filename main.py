@@ -49,12 +49,13 @@ features:
   gvim init
 
   export the current vault to static HTML
-  # gvim -e
-  gvim -e
+  # gvim e
+  gvim e
 
   open a new file with quickstart demo content
-  # gvim -q [file.gvim]
-  gvim -q demo.gvim
+  # gvim q [file.gvim]
+  gvim q
+  gvim q demo.gvim
 """
 
 

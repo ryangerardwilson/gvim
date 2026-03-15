@@ -108,7 +108,8 @@ System dependencies are required for PyGObject and GTK4. The installer uses
 - `Escape` — return to document mode from vault mode.
 - `-v` — print installed version.
 - `-u` — upgrade to the latest release.
-- `-q` — quickstart a new document with demo content (new files only).
+- `gvim e` — export the current vault to static HTML.
+- `gvim q [file.gvim]` — quickstart a new document with demo content (new files only).
 - `-h` — show CLI help.
 
 ## Configuration
@@ -416,7 +417,7 @@ format: svg
 Export all `.gvim` documents under the current vault:
 
 ```bash
-gvim -e
+gvim e
 ```
 
 This generates an `index.html` at the vault root that lists the exported site
