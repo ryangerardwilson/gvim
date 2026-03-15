@@ -1,5 +1,10 @@
 # AGENTS
 
+## Workspace Defaults
+- Follow `/home/ryan/Documents/agent_context/CLI_TUI_STYLE_GUIDE.md` for CLI/TUI taste and help shape.
+- Follow `/home/ryan/Documents/agent_context/CANONICAL_REFERENCE_IMPLEMENTATION_FOR_CLI_AND_TUI_APPS.md` for executable contract details such as `-h`, `-v`, `-u`, installer behavior, release workflow expectations, and regression expectations.
+- This file only records `gvim`-specific constraints or durable deviations.
+
 This file describes the single responsibility of each component, the goals and
 non-goals of the project, and why the current architecture exists.
 
@@ -64,14 +69,15 @@ Installer script that:
 - installs bash completion from `completions_gvim.bash`
 
 ### `_version.py`
-Single source of installed version for the CLI (`gvim --version`). Updated
-during release packaging so the binary bundle reports the correct version.
+Single runtime version module for the CLI (`gvim --version`). Keep the
+checked-in value as a placeholder and update it during release packaging so the
+binary bundle reports the correct version.
 
 ## Components and single responsibility
 
 ### `main.py`
-CLI entry point. Parses flags, manages upgrade/version flows, and starts the
-GTK app.
+CLI entry point. The shared contract owns `-h`, `-v`, `-u`, and `conf`, while
+`main.py` dispatches the actual GTK app.
 
 ### `block_model.py`
 Defines block types and the document structure.

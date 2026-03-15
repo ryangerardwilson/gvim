@@ -43,8 +43,9 @@ The script drops the unpacked bundle into `~/.gvim/app` and a shim in
 `~/.gvim/bin`. It will attempt to append that directory to your `PATH` (unless
 you opt out). Once installed, run `gvim -h` to confirm everything works.
 
-The installer also creates a dedicated venv at `~/.gvim/venv`, installs
-PyGObject via pip, and wires the launcher to always use that venv.
+The installer also creates a dedicated venv at `~/.gvim/venv`, installs the
+Python dependencies there, enables access to the system GTK bindings, and wires
+the launcher to always use that venv.
 
 Installer flags of note:
 
@@ -55,7 +56,7 @@ Installer flags of note:
 - `-h`: show installer usage.
 
 You can also download the `gvim-linux-x64.tar.gz` artifact manually from the
-releases page and run `install.sh --binary` if you prefer to manage the bundle
+releases page and run `install.sh -b` if you prefer to manage the bundle
 yourself.
 
 ### From source
@@ -76,6 +77,7 @@ System dependencies are required for PyGObject and GTK4. The installer uses
 - `gvim` — open a new document.
 - `gvim doc.gvim` — open an existing document.
 - `gvim init` — register the current directory as a vault.
+- `gvim conf` — open the config in your editor.
 - `,bn` — insert a normal text block.
 - `,bht` — insert a title block.
 - `,bh1` / `,bh2` / `,bh3` — insert heading blocks.
@@ -113,7 +115,7 @@ System dependencies are required for PyGObject and GTK4. The installer uses
 
 `gvim` stores settings in `~/.config/gvim/config.json` (or
 `$XDG_CONFIG_HOME/gvim/config.json`). You can edit this file to customize the
-Vim-style keymap and leader.
+Vim-style keymap and leader. Run `gvim conf` to open that file directly.
 
 Edits are persisted automatically whenever you change a block.
 
@@ -428,12 +430,12 @@ tree.
 
 ## Releases
 
-Tag the repository with the desired semantic version and push:
+For the full release, publish, and local upgrade path, run:
 
 ```bash
-git tag v0.4.0
-git push origin v0.4.0
+./push_release_upgrade.sh
 ```
 
-GitHub Actions builds a source bundle (`gvim-linux-x64.tar.gz`), updates
-`_version.py`, and publishes the asset alongside the tagged release.
+GitHub Actions builds a source bundle (`gvim-linux-x64.tar.gz`), stamps the
+placeholder `_version.py` in the shipped artifact, and publishes the asset
+alongside the tagged release.

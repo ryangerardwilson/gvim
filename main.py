@@ -1,4 +1,5 @@
-"""GTK application entry point."""
+#!/usr/bin/env python3
+"""Contract-aware GTK application entry point."""
 
 from __future__ import annotations
 
@@ -11,7 +12,50 @@ import traceback
 from pathlib import Path
 from typing import IO, Sequence
 
-from orchestrator import Orchestrator
+import config
+from _version import __version__
+
+try:
+    from rgw_cli_contract import AppSpec, resolve_install_script_path, run_app
+except ModuleNotFoundError:
+    contract_src = Path(__file__).resolve().parents[1] / "rgw_cli_contract" / "src"
+    if not contract_src.exists():
+        raise
+    sys.path.insert(0, str(contract_src))
+    from rgw_cli_contract import AppSpec, resolve_install_script_path, run_app
+
+
+INSTALL_SCRIPT = resolve_install_script_path(__file__)
+HELP_TEXT = """gvim
+
+flags:
+  gvim -h
+    show this help
+  gvim -v
+    print the installed version
+  gvim -u
+    upgrade to the latest release
+  gvim conf
+    open the config in $VISUAL/$EDITOR
+
+features:
+  open a new or existing block-based GTK document
+  # gvim [file.gvim]
+  gvim
+  gvim notes.gvim
+
+  register the current directory as a vault root
+  # gvim init
+  gvim init
+
+  export the current vault to static HTML
+  # gvim -e
+  gvim -e
+
+  open a new file with quickstart demo content
+  # gvim -q [file.gvim]
+  gvim -q demo.gvim
+"""
 
 
 def _init_logging() -> tuple[Path, IO[str]]:
@@ -52,7 +96,9 @@ def _install_exception_hooks() -> None:
         threading.excepthook = _thread_excepthook
 
 
-def main(argv: Sequence[str] | None = None) -> int:
+def _dispatch(argv: list[str]) -> int:
+    from orchestrator import Orchestrator
+
     log_path, _log_stream = _init_logging()
     _install_exception_hooks()
     logging.info("GVIM start")
@@ -68,6 +114,28 @@ def main(argv: Sequence[str] | None = None) -> int:
     except Exception:
         logging.error("Fatal error:\n%s", traceback.format_exc())
         raise
+
+
+APP_SPEC = AppSpec(
+    app_name="gvim",
+    version=__version__,
+    help_text=HELP_TEXT,
+    install_script_path=INSTALL_SCRIPT,
+    no_args_mode="dispatch",
+    config_path_factory=config.get_config_path,
+    config_bootstrap_text="{}\n",
+)
+
+
+def main(argv: Sequence[str] | None = None) -> int:
+    args = list(sys.argv[1:] if argv is None else argv)
+    if args == ["--help"]:
+        args = ["-h"]
+    elif args == ["--version"]:
+        args = ["-v"]
+    elif args == ["--upgrade"]:
+        args = ["-u"]
+    return run_app(APP_SPEC, args, _dispatch)
 
 
 if __name__ == "__main__":

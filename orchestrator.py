@@ -34,7 +34,6 @@ from export_html import (
     export_vault_index,
 )
 from design_constants import colors_for, font
-from _version import __version__
 from app_state import AppState
 from block_model import (
     Block,
@@ -47,10 +46,6 @@ from block_model import (
 )
 from block_view import BlockEditorView
 
-
-INSTALL_SH_URL = (
-    "https://raw.githubusercontent.com/ryangerardwilson/gvim/main/install.sh"
-)
 APP_ID = "com.gvim.block"
 
 
@@ -92,12 +87,7 @@ class Orchestrator:
     def run(self, argv: Sequence[str] | None = None) -> int:
         logging.info("Orchestrator run")
         args = list(sys.argv[1:] if argv is None else argv)
-        options, gtk_args, parser = parse_args(args)
-        if options.version:
-            print(_get_version())
-            return 0
-        if options.upgrade:
-            return _run_upgrade()
+        options, gtk_args = parse_args(args)
         if options.file == "init":
             return _run_init()
         if options.export:
@@ -1124,12 +1114,11 @@ def _prompt_ui_mode_cli() -> str | None:
 
 def parse_args(
     argv: Sequence[str],
-) -> tuple[argparse.Namespace, list[str], argparse.ArgumentParser]:
+) -> tuple[argparse.Namespace, list[str]]:
     parser = argparse.ArgumentParser(
-        description="Block-based GTK4 editor with external Vim editing"
+        description="Block-based GTK4 editor with external Vim editing",
+        add_help=False,
     )
-    parser.add_argument("-v", "--version", action="store_true", help="Show version")
-    parser.add_argument("-u", "--upgrade", action="store_true", help="Upgrade")
     parser.add_argument(
         "-e",
         "--export",
@@ -1148,60 +1137,7 @@ def parse_args(
         args, gtk_args = parser.parse_known_intermixed_args(argv)
     else:
         args, gtk_args = parser.parse_known_args(argv)
-    return args, gtk_args, parser
-
-
-def _run_upgrade() -> int:
-    try:
-        curl = subprocess.Popen(
-            ["curl", "-fsSL", INSTALL_SH_URL],
-            stdout=subprocess.PIPE,
-            stderr=subprocess.PIPE,
-        )
-    except FileNotFoundError:
-        print("Upgrade requires curl", file=sys.stderr)
-        return 1
-
-    try:
-        bash = subprocess.Popen(["bash", "-s", "--", "-u"], stdin=curl.stdout)
-        if curl.stdout is not None:
-            curl.stdout.close()
-    except FileNotFoundError:
-        print("Upgrade requires bash", file=sys.stderr)
-        curl.terminate()
-        curl.wait()
-        return 1
-
-    bash_rc = bash.wait()
-    curl_rc = curl.wait()
-
-    if curl_rc != 0:
-        stderr = (
-            curl.stderr.read().decode("utf-8", errors="replace") if curl.stderr else ""
-        )
-        if stderr:
-            sys.stderr.write(stderr)
-        return curl_rc
-
-    return bash_rc
-
-
-def _get_version() -> str:
-    if __version__ and __version__ != "0.0.0":
-        return __version__
-    try:
-        result = subprocess.run(
-            ["git", "describe", "--tags", "--always"],
-            check=False,
-            stdout=subprocess.PIPE,
-            stderr=subprocess.DEVNULL,
-            text=True,
-        )
-    except FileNotFoundError:
-        return __version__
-    if result.returncode == 0:
-        return result.stdout.strip() or __version__
-    return __version__
+    return args, gtk_args
 
 
 def _run_init() -> int:

@@ -22,52 +22,21 @@ jobs:
           echo "TAG=${TAG}" >> "$GITHUB_ENV"
           echo "VERSION=${VERSION}" >> "$GITHUB_ENV"
 
-      - name: Build linux-x64 binary in manylinux2014
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - name: Build source bundle
         run: |
           set -euo pipefail
-
-          docker run --rm \
-            -e GITHUB_TOKEN="${GITHUB_TOKEN:-}" \
-            -e VERSION="${VERSION}" \
-            -v "${GITHUB_WORKSPACE}:/work" \
-            -w /work \
-            quay.io/pypa/manylinux2014_x86_64 \
-            bash -lc '
-              set -euo pipefail
-              yum -y install curl zstd rsync
-              PY_URL=$(/opt/python/cp311-cp311/bin/python .github/scripts/find-python-url.py)
-              test -n "$PY_URL"
-              echo "Using python-build-standalone: $PY_URL"
-              curl -fL "$PY_URL" -o /tmp/python.tar
-              mkdir -p /opt/py
-              case "$PY_URL" in
-                *.tar.zst)
-                  tar --use-compress-program=unzstd -xf /tmp/python.tar -C /opt/py
-                  ;;
-                *.tar.gz)
-                  tar -xzf /tmp/python.tar -C /opt/py
-                  ;;
-                *)
-                  echo "Unknown python archive format: $PY_URL" >&2
-                  exit 1
-                  ;;
-              esac
-
-              PYBIN="/opt/py/python/bin/python3"
-              export LD_LIBRARY_PATH="/opt/py/python/lib:${LD_LIBRARY_PATH:-}"
-              "$PYBIN" -m pip install -U pip
-              echo "__version__ = \"${VERSION}\"" > _version.py
-              mkdir -p dist/gvim
-              rsync -av --exclude '.git' --exclude '.github' --exclude 'dist' \
-                --include '/*.py' --exclude '*' /work/ dist/gvim/
-              cp -a style.css three_template.py three.module.min.js latex_template.py \
-                map_template.py katex.min.js katex.min.css fonts _version.py \
-                AGENTS.md README.md completions_gvim.bash dist/gvim/
-              tar -C dist -czf gvim-linux-x64.tar.gz gvim
-
-            '
+          echo "__version__ = \"${VERSION}\"" > _version.py
+          mkdir -p dist/gvim
+          rsync -av \
+            --exclude '.git' \
+            --exclude '.github' \
+            --exclude 'dist' \
+            --exclude '.pytest_cache' \
+            --exclude '.ruff_cache' \
+            --exclude '__pycache__' \
+            --exclude '*.pyc' \
+            ./ dist/gvim/
+          tar -C dist -czf gvim-linux-x64.tar.gz gvim
 
       - name: Create release and upload asset
         uses: softprops/action-gh-release@v1

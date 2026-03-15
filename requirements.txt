@@ -1,4 +1,4 @@
-PyGObject
+rgw-cli-contract==0.1.1
 numpy
 matplotlib
 pandas
