@@ -1,4 +1,4 @@
-rgw-cli-contract==0.1.1
+rgw-cli-contract==0.1.2
 numpy
 matplotlib
 pandas
