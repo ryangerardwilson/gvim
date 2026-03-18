@@ -56,16 +56,14 @@ create_venv() {
 
   rm -rf "$VENV_DIR"
   if command -v virtualenv >/dev/null 2>&1; then
-    if TMPDIR="$tmp_root" virtualenv --python "$PYTHON_BIN" "$VENV_DIR" >"$venv_log" 2>&1; then
-      [[ -x "$VENV_DIR/bin/pip" ]] || die "virtualenv created ${VENV_DIR} without pip"
+    if TMPDIR="$tmp_root" virtualenv --python "$PYTHON_BIN" --without-pip "$VENV_DIR" >"$venv_log" 2>&1; then
       return 0
     fi
   fi
 
   rm -rf "$VENV_DIR"
-  if TMPDIR="$tmp_root" "$PYTHON_BIN" -m venv "$VENV_DIR" >"$venv_log" 2>&1; then
-    [[ -x "$VENV_DIR/bin/pip" ]] || die "python3 -m venv created ${VENV_DIR} without pip"
-    return 0
+  if TMPDIR="$tmp_root" "$PYTHON_BIN" -m venv --without-pip "$VENV_DIR" >"$venv_log" 2>&1; then
+      return 0
   fi
 
   if [[ -s "$venv_log" ]]; then
@@ -125,6 +123,7 @@ require_sudo() {
 system_deps_ok() {
   type -P python3 >/dev/null 2>&1 || return 1
   command python3 -c "import gi; gi.require_version('Gtk', '4.0')" >/dev/null 2>&1 || return 1
+  command python3 -c "import numpy, matplotlib, pandas" >/dev/null 2>&1 || return 1
   return 0
 }
 
@@ -141,6 +140,9 @@ install_system_deps() {
         python3 \
         python3-venv \
         python3-gi \
+        python3-numpy \
+        python3-matplotlib \
+        python3-pandas \
         gir1.2-gtk-4.0 \
         libgirepository1.0-dev \
         gcc \
@@ -152,6 +154,9 @@ install_system_deps() {
       sudo dnf install -y \
         python3 \
         python3-gobject \
+        python3-numpy \
+        python3-matplotlib \
+        python3-pandas \
         gtk4 \
         gobject-introspection-devel \
         gcc \
@@ -163,6 +168,9 @@ install_system_deps() {
       sudo pacman -S --noconfirm \
         python \
         python-gobject \
+        python-numpy \
+        python-matplotlib \
+        python-pandas \
         gtk4 \
         gobject-introspection \
         gcc \
@@ -300,9 +308,6 @@ fi
 [[ -f "${SOURCE_DIR}/_version.py" ]] || die "Source bundle missing _version.py"
 
 create_venv
-if [[ -f "${SOURCE_DIR}/requirements.txt" ]]; then
-  "$VENV_DIR/bin/python" -m pip install --disable-pip-version-check --no-cache-dir --only-binary=:all: -r "${SOURCE_DIR}/requirements.txt" >/dev/null
-fi
 
 cat > "${INSTALL_DIR}/${APP}" <<EOF
 #!/usr/bin/env bash

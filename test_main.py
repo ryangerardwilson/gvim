@@ -70,6 +70,8 @@ def test_install_script_prefers_machine_venv_provider() -> None:
     script = (ROOT / "install.sh").read_text(encoding="utf-8")
     assert 'create_venv() {' in script
     assert 'tmp_root="${TMPDIR:-${XDG_CACHE_HOME:-$HOME/.cache}/${APP}/tmp}"' in script
-    assert 'virtualenv --python "$PYTHON_BIN" "$VENV_DIR"' in script
-    assert '"$PYTHON_BIN" -m venv "$VENV_DIR"' in script
-    assert '"$VENV_DIR/bin/python" -m pip install --disable-pip-version-check -r "${SOURCE_DIR}/requirements.txt"' in script
+    assert 'virtualenv --python "$PYTHON_BIN" --without-pip "$VENV_DIR"' in script
+    assert 'TMPDIR="$tmp_root" "$PYTHON_BIN" -m venv --without-pip "$VENV_DIR"' in script
+    assert 'python3-numpy' in script
+    assert 'python3-matplotlib' in script
+    assert 'python3-pandas' in script
