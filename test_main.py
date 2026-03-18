@@ -5,12 +5,9 @@ from unittest.mock import patch
 
 
 ROOT = Path(__file__).resolve().parent
-CONTRACT_SRC = ROOT.parent / "rgw_cli_contract" / "src"
 
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
-if CONTRACT_SRC.exists() and str(CONTRACT_SRC) not in sys.path:
-    sys.path.insert(0, str(CONTRACT_SRC))
 
 import config
 import main
@@ -67,3 +64,11 @@ def test_long_flag_aliases_map_to_contract_flags(monkeypatch) -> None:
     assert recorded["spec"] == main.APP_SPEC
     assert recorded["argv"] == ["-u"]
     assert recorded["dispatch"] is main._dispatch
+
+
+def test_install_script_prefers_machine_venv_provider() -> None:
+    script = (ROOT / "install.sh").read_text(encoding="utf-8")
+    assert 'create_venv() {' in script
+    assert 'virtualenv --python "$PYTHON_BIN" "$VENV_DIR"' in script
+    assert '"$PYTHON_BIN" -m venv "$VENV_DIR"' in script
+    assert '"$VENV_DIR/bin/python" -m pip install --disable-pip-version-check -r "${SOURCE_DIR}/requirements.txt"' in script

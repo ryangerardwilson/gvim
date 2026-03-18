@@ -9,20 +9,11 @@ import os
 import sys
 import threading
 import traceback
-from pathlib import Path
 from typing import IO, Sequence
 
 import config
 from _version import __version__
-
-try:
-    from rgw_cli_contract import AppSpec, resolve_install_script_path, run_app
-except ModuleNotFoundError:
-    contract_src = Path(__file__).resolve().parents[1] / "rgw_cli_contract" / "src"
-    if not contract_src.exists():
-        raise
-    sys.path.insert(0, str(contract_src))
-    from rgw_cli_contract import AppSpec, resolve_install_script_path, run_app
+from rgw_cli_contract import AppSpec, resolve_install_script_path, run_app
 
 
 INSTALL_SCRIPT = resolve_install_script_path(__file__)
