@@ -69,6 +69,7 @@ def test_long_flag_aliases_map_to_contract_flags(monkeypatch) -> None:
 def test_install_script_prefers_machine_venv_provider() -> None:
     script = (ROOT / "install.sh").read_text(encoding="utf-8")
     assert 'create_venv() {' in script
+    assert 'tmp_root="${TMPDIR:-${XDG_CACHE_HOME:-$HOME/.cache}/${APP}/tmp}"' in script
     assert 'virtualenv --python "$PYTHON_BIN" "$VENV_DIR"' in script
     assert '"$PYTHON_BIN" -m venv "$VENV_DIR"' in script
     assert '"$VENV_DIR/bin/python" -m pip install --disable-pip-version-check -r "${SOURCE_DIR}/requirements.txt"' in script

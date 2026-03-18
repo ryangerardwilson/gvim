@@ -56,14 +56,14 @@ create_venv() {
 
   rm -rf "$VENV_DIR"
   if command -v virtualenv >/dev/null 2>&1; then
-    if virtualenv --python "$PYTHON_BIN" "$VENV_DIR" >"$venv_log" 2>&1; then
+    if TMPDIR="$tmp_root" virtualenv --python "$PYTHON_BIN" "$VENV_DIR" >"$venv_log" 2>&1; then
       [[ -x "$VENV_DIR/bin/pip" ]] || die "virtualenv created ${VENV_DIR} without pip"
       return 0
     fi
   fi
 
   rm -rf "$VENV_DIR"
-  if "$PYTHON_BIN" -m venv "$VENV_DIR" >"$venv_log" 2>&1; then
+  if TMPDIR="$tmp_root" "$PYTHON_BIN" -m venv "$VENV_DIR" >"$venv_log" 2>&1; then
     [[ -x "$VENV_DIR/bin/pip" ]] || die "python3 -m venv created ${VENV_DIR} without pip"
     return 0
   fi
@@ -82,9 +82,9 @@ extract_source() {
   local out_dir="$2"
 
   rm -rf "$out_dir"
-  mkdir -p "$out_dir"
 
   if [[ -d "$src_path" ]]; then
+    mkdir -p "$out_dir"
     cp -R "$src_path"/. "$out_dir"/
   else
     command -v tar >/dev/null 2>&1 || die "'tar' is required but not installed."
@@ -92,10 +92,10 @@ extract_source() {
     local extracted
     extracted="$(find "$tmp_dir" -mindepth 1 -maxdepth 1 -type d | head -n 1)"
     [[ -n "$extracted" ]] || die "Failed to extract source bundle"
-    cp -R "$extracted"/. "$out_dir"/
+    mv "$extracted" "$out_dir"
   fi
 
-  rm -rf "$out_dir/.git" "$out_dir/.ruff_cache" "$out_dir/.pytest_cache"
+  rm -rf "$out_dir/.git" "$out_dir/.github" "$out_dir/dist" "$out_dir/.ruff_cache" "$out_dir/.pytest_cache"
   find "$out_dir" -type d -name "__pycache__" -exec rm -rf {} + 2>/dev/null || true
 }
 
@@ -253,7 +253,9 @@ fi
 command -v python3 >/dev/null 2>&1 || { print_message error "'python3' is required but not installed."; exit 1; }
 PYTHON_BIN="python3"
 mkdir -p "$INSTALL_DIR" "$APP_DIR"
-tmp_dir="${TMPDIR:-/tmp}/${APP}_install_$$"
+tmp_root="${TMPDIR:-${XDG_CACHE_HOME:-$HOME/.cache}/${APP}/tmp}"
+mkdir -p "$tmp_root"
+tmp_dir="${tmp_root}/${APP}_install_$$"
 rm -rf "$tmp_dir"
 mkdir -p "$tmp_dir"
 trap 'rm -rf "$tmp_dir"' EXIT
@@ -299,7 +301,7 @@ fi
 
 create_venv
 if [[ -f "${SOURCE_DIR}/requirements.txt" ]]; then
-  "$VENV_DIR/bin/python" -m pip install --disable-pip-version-check -r "${SOURCE_DIR}/requirements.txt" >/dev/null
+  "$VENV_DIR/bin/python" -m pip install --disable-pip-version-check --no-cache-dir --only-binary=:all: -r "${SOURCE_DIR}/requirements.txt" >/dev/null
 fi
 
 cat > "${INSTALL_DIR}/${APP}" <<EOF
