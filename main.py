@@ -9,6 +9,7 @@ import os
 import sys
 import threading
 import traceback
+from pathlib import Path
 from typing import IO, Sequence
 
 import config

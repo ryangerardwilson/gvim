@@ -66,6 +66,17 @@ def test_long_flag_aliases_map_to_contract_flags(monkeypatch) -> None:
     assert recorded["dispatch"] is main._dispatch
 
 
+def test_init_logging_uses_home_directory(monkeypatch, tmp_path) -> None:
+    monkeypatch.setenv("HOME", str(tmp_path))
+
+    log_path, log_stream = main._init_logging()
+    try:
+        assert log_path == tmp_path / ".gvim" / "gvim.log"
+        assert log_path.exists()
+    finally:
+        log_stream.close()
+
+
 def test_install_script_prefers_machine_venv_provider() -> None:
     script = (ROOT / "install.sh").read_text(encoding="utf-8")
     assert 'create_venv() {' in script
