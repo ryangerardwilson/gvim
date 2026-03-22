@@ -39,9 +39,16 @@ Grab the latest tagged release via the helper script:
 curl -fsSL https://raw.githubusercontent.com/ryangerardwilson/gvim/main/install.sh | bash
 ```
 
+Manually add these lines to `~/.bashrc`, then reload your shell:
+
+```bash
+export PATH="$HOME/.gvim/bin:$PATH"
+[ -r "${XDG_CONFIG_HOME:-$HOME/.config}/bash_completion.d/gvim" ] && . "${XDG_CONFIG_HOME:-$HOME/.config}/bash_completion.d/gvim"
+source ~/.bashrc
+```
+
 The script drops the unpacked bundle into `~/.gvim/app` and a shim in
-`~/.gvim/bin`. It will attempt to append that directory to your `PATH` (unless
-you opt out). Once installed, run `gvim -h` to confirm everything works.
+`~/.gvim/bin`. Once installed, run `gvim -h` to confirm everything works.
 
 The installer also creates a dedicated venv at `~/.gvim/venv`, installs the
 Python dependencies there, enables access to the system GTK bindings, and wires
@@ -251,8 +258,8 @@ Leader is `,` followed by a short token. Block commands are prefixed with `b`:
 ### Bash completion
 
 The installer drops a completion script into
-`${XDG_CONFIG_HOME:-~/.config}/bash_completion.d/gvim` and adds a loader to
-`~/.bashrc` if needed.
+`${XDG_CONFIG_HOME:-~/.config}/bash_completion.d/gvim`. Add the loader to
+`~/.bashrc` manually in the install step above.
 
 ---
 
