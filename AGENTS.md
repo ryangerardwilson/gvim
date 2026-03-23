@@ -64,9 +64,9 @@ workflow builds the bundle and publishes artifacts to GitHub Releases.
 ### `install.sh`
 Installer script that:
 - downloads the tagged release bundle or installs from a local tarball
-- installs into `~/.gvim/app` and puts a launcher in `~/.gvim/bin`
-- optionally adds the bin directory to PATH
-- installs bash completion from `completions_gvim.bash`
+- installs into `~/.gvim/app`, keeps the internal launcher at `~/.gvim/bin/gvim`, and publishes the user-facing command at `~/.local/bin/gvim`
+- never edits shell startup files automatically
+- ships bash completion from `completions_gvim.bash` and prints the manual loader line
 
 ### `_version.py`
 Single runtime version module for the CLI (`gvim --version`). Keep the

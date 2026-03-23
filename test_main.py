@@ -79,10 +79,11 @@ def test_init_logging_uses_home_directory(monkeypatch, tmp_path) -> None:
 
 def test_install_script_prefers_machine_venv_provider() -> None:
     script = (ROOT / "install.sh").read_text(encoding="utf-8")
-    assert 'create_venv() {' in script
-    assert 'tmp_root="${TMPDIR:-${XDG_CACHE_HOME:-$HOME/.cache}/${APP}/tmp}"' in script
-    assert 'virtualenv --python "$PYTHON_BIN" --without-pip "$VENV_DIR"' in script
-    assert 'TMPDIR="$tmp_root" "$PYTHON_BIN" -m venv --without-pip "$VENV_DIR"' in script
-    assert 'python3-numpy' in script
-    assert 'python3-matplotlib' in script
-    assert 'python3-pandas' in script
+    assert 'PUBLIC_BIN_DIR="$HOME/.local/bin"' in script
+    assert 'write_public_launcher() {' in script
+    assert 'python3 -m venv "$VENV_DIR"' in script
+    assert '"$VENV_DIR/bin/pip" install --disable-pip-version-check -r "${SOURCE_DIR}/requirements.txt"' in script
+    assert 'python3-gi' in script
+    assert 'gir1.2-gtk-4.0' in script
+    assert 'python-gobject' in script
+    assert 'touch "$bashrc"' not in script

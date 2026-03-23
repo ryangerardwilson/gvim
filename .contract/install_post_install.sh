@@ -15,7 +15,7 @@ enable_system_site_packages() {
 
 verify_runtime_dependencies() {
   "$VENV_DIR/bin/python" -c "import gi; gi.require_version('Gtk', '4.0')"
-  "$VENV_DIR/bin/python" -c "import numpy, matplotlib, pandas, rgw_cli_contract"
+  "$VENV_DIR/bin/python" -c "import numpy, matplotlib, pandas"
 }
 
 rewrite_launcher() {
@@ -48,28 +48,7 @@ EOF
   chmod 755 "${INSTALL_DIR}/${APP}"
 }
 
-install_bash_completion() {
-  local source_completion="${SOURCE_DIR}/completions_gvim.bash"
-  local completion_dir="${XDG_CONFIG_HOME:-$HOME/.config}/bash_completion.d"
-  local bashrc="$HOME/.bashrc"
-
-  [[ -f "$source_completion" ]] || return
-
-  mkdir -p "$completion_dir"
-  cp "$source_completion" "$completion_dir/gvim"
-
-  if [[ ! -e "$bashrc" ]]; then
-    touch "$bashrc"
-  fi
-
-  if [[ -w "$bashrc" ]] && ! grep -Fq "bash_completion.d/gvim" "$bashrc" 2>/dev/null; then
-    printf '\n# GVIM bash completion\nif [ -r "%s/gvim" ]; then\n  . "%s/gvim"\nfi\n' \
-      "$completion_dir" "$completion_dir" >> "$bashrc"
-  fi
-}
-
 ensure_gvim_system_deps
 enable_system_site_packages
 verify_runtime_dependencies
 rewrite_launcher
-install_bash_completion

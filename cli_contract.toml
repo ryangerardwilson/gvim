@@ -6,3 +6,6 @@ release_asset = "gvim-linux-x64.tar.gz"
 install_test_path = "test_install_contract.py"
 install_prelude_path = ".contract/install_prelude.sh"
 install_post_install_path = ".contract/install_post_install.sh"
+
+[shell]
+hook_relpath = "completions_gvim.bash"

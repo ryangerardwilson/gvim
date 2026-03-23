@@ -9,6 +9,9 @@ APP_DIR="$APP_HOME/app"
 SOURCE_DIR="$APP_DIR/source"
 VENV_DIR="$APP_HOME/venv"
 FILENAME="gvim-linux-x64.tar.gz"
+PUBLIC_BIN_DIR="$HOME/.local/bin"
+PUBLIC_LAUNCHER="$PUBLIC_BIN_DIR/${APP}"
+
 
 usage() {
   cat <<EOF
@@ -21,7 +24,7 @@ Options:
   -v [<version>]             Print the latest release version, or install a specific one
   -u                         Upgrade to the latest release only when newer
   -b <path>                  Install from a local checkout or source bundle
-  -n                         Compatibility no-op; installer never modifies shell config
+  -n                         Do not modify shell config to add to PATH
 
       --help                 Compatibility alias for -h
       --version [<version>]  Compatibility alias for -v
@@ -49,30 +52,26 @@ die() {
   exit 1
 }
 
-create_venv() {
-  local venv_log="$tmp_dir/venv-create.log"
-
-  ensure_gvim_system_deps
-
-  rm -rf "$VENV_DIR"
-  if command -v virtualenv >/dev/null 2>&1; then
-    if TMPDIR="$tmp_root" virtualenv --python "$PYTHON_BIN" --without-pip "$VENV_DIR" >"$venv_log" 2>&1; then
-      return 0
-    fi
+installed_command_path() {
+  if command -v "${APP}" >/dev/null 2>&1; then
+    command -v "${APP}"
+    return 0
   fi
+  if [[ -x "${INSTALL_DIR}/${APP}" ]]; then
+    printf '%s\n' "${INSTALL_DIR}/${APP}"
+    return 0
+  fi
+  if [[ -x "${PUBLIC_LAUNCHER}" ]]; then
+    printf '%s\n' "${PUBLIC_LAUNCHER}"
+    return 0
+  fi
+  return 1
+}
 
-  rm -rf "$VENV_DIR"
-  if TMPDIR="$tmp_root" "$PYTHON_BIN" -m venv --without-pip "$VENV_DIR" >"$venv_log" 2>&1; then
-      return 0
-  fi
-
-  if [[ -s "$venv_log" ]]; then
-    cat "$venv_log" >&2
-  fi
-  if command -v virtualenv >/dev/null 2>&1; then
-    die "Unable to create virtual environment with virtualenv or python3 -m venv."
-  fi
-  die "Unable to create virtual environment with python3 -m venv. Install python3-venv or virtualenv."
+read_installed_version() {
+  local installed_cmd
+  installed_cmd="$(installed_command_path)" || return 0
+  "$installed_cmd" -v 2>/dev/null || true
 }
 
 extract_source() {
@@ -80,9 +79,9 @@ extract_source() {
   local out_dir="$2"
 
   rm -rf "$out_dir"
+  mkdir -p "$out_dir"
 
   if [[ -d "$src_path" ]]; then
-    mkdir -p "$out_dir"
     cp -R "$src_path"/. "$out_dir"/
   else
     command -v tar >/dev/null 2>&1 || die "'tar' is required but not installed."
@@ -90,10 +89,10 @@ extract_source() {
     local extracted
     extracted="$(find "$tmp_dir" -mindepth 1 -maxdepth 1 -type d | head -n 1)"
     [[ -n "$extracted" ]] || die "Failed to extract source bundle"
-    mv "$extracted" "$out_dir"
+    cp -R "$extracted"/. "$out_dir"/
   fi
 
-  rm -rf "$out_dir/.git" "$out_dir/.github" "$out_dir/dist" "$out_dir/.ruff_cache" "$out_dir/.pytest_cache"
+  rm -rf "$out_dir/.git" "$out_dir/.ruff_cache" "$out_dir/.pytest_cache"
   find "$out_dir" -type d -name "__pycache__" -exec rm -rf {} + 2>/dev/null || true
 }
 
@@ -123,7 +122,6 @@ require_sudo() {
 system_deps_ok() {
   type -P python3 >/dev/null 2>&1 || return 1
   command python3 -c "import gi; gi.require_version('Gtk', '4.0')" >/dev/null 2>&1 || return 1
-  command python3 -c "import numpy, matplotlib, pandas" >/dev/null 2>&1 || return 1
   return 0
 }
 
@@ -140,9 +138,6 @@ install_system_deps() {
         python3 \
         python3-venv \
         python3-gi \
-        python3-numpy \
-        python3-matplotlib \
-        python3-pandas \
         gir1.2-gtk-4.0 \
         libgirepository1.0-dev \
         gcc \
@@ -154,9 +149,6 @@ install_system_deps() {
       sudo dnf install -y \
         python3 \
         python3-gobject \
-        python3-numpy \
-        python3-matplotlib \
-        python3-pandas \
         gtk4 \
         gobject-introspection-devel \
         gcc \
@@ -168,9 +160,6 @@ install_system_deps() {
       sudo pacman -S --noconfirm \
         python \
         python-gobject \
-        python-numpy \
-        python-matplotlib \
-        python-pandas \
         gtk4 \
         gobject-introspection \
         gcc \
@@ -199,6 +188,47 @@ ensure_gvim_system_deps() {
 python3() {
   ensure_gvim_system_deps
   command python3 "$@"
+}
+write_public_launcher() {
+  if [[ -e "$PUBLIC_LAUNCHER" && ! -L "$PUBLIC_LAUNCHER" && ! -f "$PUBLIC_LAUNCHER" ]]; then
+    die "Refusing to overwrite non-file launcher: $PUBLIC_LAUNCHER"
+  fi
+
+  if [[ -L "$PUBLIC_LAUNCHER" ]]; then
+    local resolved
+    resolved="$(readlink -f "$PUBLIC_LAUNCHER" 2>/dev/null || true)"
+    if [[ "$resolved" != "${INSTALL_DIR}/${APP}" ]]; then
+      die "Refusing to overwrite existing symlink launcher: $PUBLIC_LAUNCHER"
+    fi
+  elif [[ -f "$PUBLIC_LAUNCHER" ]] && ! grep -Fq '# Managed by rgw_cli_contract local-bin launcher' "$PUBLIC_LAUNCHER" 2>/dev/null; then
+    die "Refusing to overwrite existing launcher: $PUBLIC_LAUNCHER"
+  fi
+
+  mkdir -p "$PUBLIC_BIN_DIR"
+  cat > "${PUBLIC_LAUNCHER}" <<EOF
+#!/usr/bin/env bash
+# Managed by rgw_cli_contract local-bin launcher
+set -euo pipefail
+exec "${INSTALL_DIR}/${APP}" "\$@"
+EOF
+  chmod 755 "${PUBLIC_LAUNCHER}"
+}
+
+finalize_install() {
+  write_public_launcher
+}
+
+print_manual_shell_steps() {
+  local printed=false
+  if [[ ":$PATH:" != *":$PUBLIC_BIN_DIR:"* ]]; then
+    print_message info "Manually add to ~/.bashrc if needed: export PATH=$PUBLIC_BIN_DIR:\$PATH"
+    printed=true
+  fi
+  print_message info "Manually add to ~/.bashrc: [ -r \"${SOURCE_DIR}/completions_gvim.bash\" ] && source \"${SOURCE_DIR}/completions_gvim.bash\""
+  printed=true
+  if [[ "$printed" == "true" ]]; then
+    print_message info "Reload your shell: source ~/.bashrc"
+  fi
 }
 
 while [[ $# -gt 0 ]]; do
@@ -248,22 +278,19 @@ if $upgrade; then
   [[ -z "$binary_path" ]] || die "-u cannot be used with -b"
   [[ -z "$requested_version" ]] || die "-u cannot be combined with -v <version>"
   requested_version="$(get_latest_version)"
-  if command -v "${APP}" >/dev/null 2>&1; then
-    installed_version="$(${APP} -v 2>/dev/null || true)"
-    installed_version="${installed_version#v}"
-    if [[ -n "$installed_version" && "$installed_version" == "$requested_version" ]]; then
-      print_message info "${APP} version ${requested_version} already installed"
-      exit 0
-    fi
+  installed_version="$(read_installed_version)"
+  installed_version="${installed_version#v}"
+  if [[ -n "$installed_version" && "$installed_version" == "$requested_version" ]]; then
+    finalize_install
+    print_manual_shell_steps
+    print_message info "${APP} version ${requested_version} already installed"
+    exit 0
   fi
 fi
 
 command -v python3 >/dev/null 2>&1 || { print_message error "'python3' is required but not installed."; exit 1; }
-PYTHON_BIN="python3"
 mkdir -p "$INSTALL_DIR" "$APP_DIR"
-tmp_root="${TMPDIR:-${XDG_CACHE_HOME:-$HOME/.cache}/${APP}/tmp}"
-mkdir -p "$tmp_root"
-tmp_dir="${tmp_root}/${APP}_install_$$"
+tmp_dir="${TMPDIR:-/tmp}/${APP}_install_$$"
 rm -rf "$tmp_dir"
 mkdir -p "$tmp_dir"
 trap 'rm -rf "$tmp_dir"' EXIT
@@ -289,13 +316,13 @@ else
     fi
   fi
 
-  if command -v "${APP}" >/dev/null 2>&1; then
-    installed_version="$(${APP} -v 2>/dev/null || true)"
-    installed_version="${installed_version#v}"
-    if [[ -n "$installed_version" && "$installed_version" == "$specific_version" ]]; then
-      print_message info "${APP} version ${specific_version} already installed"
-      exit 0
-    fi
+  installed_version="$(read_installed_version)"
+  installed_version="${installed_version#v}"
+  if [[ -n "$installed_version" && "$installed_version" == "$specific_version" ]]; then
+    finalize_install
+    print_manual_shell_steps
+    print_message info "${APP} version ${specific_version} already installed"
+    exit 0
   fi
 
   url="https://github.com/${REPO}/releases/download/v${specific_version}/${FILENAME}"
@@ -307,15 +334,22 @@ fi
 [[ -f "${SOURCE_DIR}/main.py" ]] || die "Source bundle missing main.py"
 [[ -f "${SOURCE_DIR}/_version.py" ]] || die "Source bundle missing _version.py"
 
-create_venv
+
+python3 -m venv "$VENV_DIR"
+"$VENV_DIR/bin/pip" install --disable-pip-version-check -U pip >/dev/null
+if [[ -f "${SOURCE_DIR}/requirements.txt" ]]; then
+  "$VENV_DIR/bin/pip" install --disable-pip-version-check -r "${SOURCE_DIR}/requirements.txt" >/dev/null
+fi
 
 cat > "${INSTALL_DIR}/${APP}" <<EOF
 #!/usr/bin/env bash
 set -euo pipefail
+
 exec "${VENV_DIR}/bin/python" "${SOURCE_DIR}/main.py" "\$@"
 EOF
 chmod 755 "${INSTALL_DIR}/${APP}"
 
+finalize_install
 enable_system_site_packages() {
   local pyvenv_cfg="$VENV_DIR/pyvenv.cfg"
   [[ -f "$pyvenv_cfg" ]] || die "Missing venv config: $pyvenv_cfg"
@@ -333,7 +367,7 @@ enable_system_site_packages() {
 
 verify_runtime_dependencies() {
   "$VENV_DIR/bin/python" -c "import gi; gi.require_version('Gtk', '4.0')"
-  "$VENV_DIR/bin/python" -c "import numpy, matplotlib, pandas, rgw_cli_contract"
+  "$VENV_DIR/bin/python" -c "import numpy, matplotlib, pandas"
 }
 
 rewrite_launcher() {
@@ -366,22 +400,10 @@ EOF
   chmod 755 "${INSTALL_DIR}/${APP}"
 }
 
-install_bash_completion() {
-  local source_completion="${SOURCE_DIR}/completions_gvim.bash"
-  local completion_dir="${XDG_CONFIG_HOME:-$HOME/.config}/bash_completion.d"
-  [[ -f "$source_completion" ]] || return
-
-  mkdir -p "$completion_dir"
-  cp "$source_completion" "$completion_dir/gvim"
-}
-
 ensure_gvim_system_deps
 enable_system_site_packages
 verify_runtime_dependencies
 rewrite_launcher
-install_bash_completion
 
-print_message info "Manually add to ~/.bashrc: export PATH=$INSTALL_DIR:\$PATH"
-print_message info "Manually add to ~/.bashrc: [ -r \"${XDG_CONFIG_HOME:-$HOME/.config}/bash_completion.d/gvim\" ] && . \"${XDG_CONFIG_HOME:-$HOME/.config}/bash_completion.d/gvim\""
-print_message info "Reload your shell: source ~/.bashrc"
+print_manual_shell_steps
 print_message info "Run: ${APP} -h"

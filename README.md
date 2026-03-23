@@ -39,16 +39,19 @@ Grab the latest tagged release via the helper script:
 curl -fsSL https://raw.githubusercontent.com/ryangerardwilson/gvim/main/install.sh | bash
 ```
 
-Manually add these lines to `~/.bashrc`, then reload your shell:
+If `~/.local/bin` is not already on your `PATH`, or if you want the installed
+bash completion loader, add these lines to `~/.bashrc` and reload your shell:
 
 ```bash
-export PATH="$HOME/.gvim/bin:$PATH"
-[ -r "${XDG_CONFIG_HOME:-$HOME/.config}/bash_completion.d/gvim" ] && . "${XDG_CONFIG_HOME:-$HOME/.config}/bash_completion.d/gvim"
+export PATH="$HOME/.local/bin:$PATH"
+[ -r "$HOME/.gvim/app/source/completions_gvim.bash" ] && . "$HOME/.gvim/app/source/completions_gvim.bash"
 source ~/.bashrc
 ```
 
-The script drops the unpacked bundle into `~/.gvim/app` and a shim in
-`~/.gvim/bin`. Once installed, run `gvim -h` to confirm everything works.
+The script drops the unpacked bundle into `~/.gvim/app`, keeps the internal
+launcher at `~/.gvim/bin/gvim`, and publishes the user-facing command at
+`~/.local/bin/gvim`. Once installed, run `gvim -h` to confirm everything
+works.
 
 The installer also creates a dedicated venv at `~/.gvim/venv`, installs the
 Python dependencies there, enables access to the system GTK bindings, and wires
@@ -257,9 +260,9 @@ Leader is `,` followed by a short token. Block commands are prefixed with `b`:
 
 ### Bash completion
 
-The installer drops a completion script into
-`${XDG_CONFIG_HOME:-~/.config}/bash_completion.d/gvim`. Add the loader to
-`~/.bashrc` manually in the install step above.
+The installed source bundle includes `completions_gvim.bash` at
+`~/.gvim/app/source/completions_gvim.bash`. Add the loader to `~/.bashrc`
+manually in the install step above.
 
 ---
 

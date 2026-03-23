@@ -15,6 +15,19 @@ class InstallContractTests(unittest.TestCase):
         path.write_text(body, encoding="utf-8")
         path.chmod(0o755)
 
+    def _run_installer(self, home_dir: Path, *args: str, path_prefix: Path | None = None) -> subprocess.CompletedProcess[str]:
+        env = os.environ.copy()
+        env["HOME"] = str(home_dir)
+        if path_prefix is not None:
+            env["PATH"] = f"{path_prefix}:{env['PATH']}"
+        return subprocess.run(
+            ["/usr/bin/bash", str(INSTALLER), *args],
+            capture_output=True,
+            text=True,
+            env=env,
+            check=True,
+        )
+
     def test_dash_v_without_argument_prints_latest_release(self):
         with tempfile.TemporaryDirectory() as tmp:
             tmp_path = Path(tmp)
@@ -34,17 +47,7 @@ class InstallContractTests(unittest.TestCase):
                 "exit 1\n",
             )
 
-            env = os.environ.copy()
-            env["PATH"] = f"{bin_dir}:{env['PATH']}"
-            env["HOME"] = str(home_dir)
-
-            result = subprocess.run(
-                ["/usr/bin/bash", str(INSTALLER), "-v"],
-                capture_output=True,
-                text=True,
-                env=env,
-                check=True,
-            )
+            result = self._run_installer(home_dir, "-v", path_prefix=bin_dir)
 
             self.assertEqual(result.stdout.strip(), "0.1.21")
 
@@ -77,19 +80,44 @@ class InstallContractTests(unittest.TestCase):
                 "exit 1\n",
             )
 
-            env = os.environ.copy()
-            env["PATH"] = f"{bin_dir}:{env['PATH']}"
-            env["HOME"] = str(home_dir)
-
-            result = subprocess.run(
-                ["/usr/bin/bash", str(INSTALLER), "-u"],
-                capture_output=True,
-                text=True,
-                env=env,
-                check=True,
-            )
+            result = self._run_installer(home_dir, "-u", path_prefix=bin_dir)
 
             self.assertIn("already installed", result.stdout)
+            self.assertTrue((Path('$HOME/.local/bin'.replace("$HOME", str(home_dir))) / 'gvim').exists())
+
+    def test_local_source_install_writes_managed_launchers(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            home_dir = Path(tmp)
+            bashrc_path = home_dir / '.bashrc'
+            bashrc_path.write_text('# existing shell config\n', encoding='utf-8')
+
+            result = self._run_installer(home_dir, "-b", str(INSTALLER.parent), "-n")
+
+            internal_launcher = home_dir / ".gvim" / "bin" / 'gvim'
+            self.assertTrue(internal_launcher.exists())
+            internal_text = internal_launcher.read_text(encoding="utf-8")
+            self.assertIn('exec "', internal_text)
+            self.assertIn('/.gvim/venv/bin/python', internal_text)
+            self.assertIn('/.gvim/app/source/main.py', internal_text)
+            self.assertEqual(
+                bashrc_path.read_text(encoding='utf-8'),
+                '# existing shell config\n',
+            )
+            public_launcher = Path('$HOME/.local/bin'.replace("$HOME", str(home_dir))) / 'gvim'
+            self.assertTrue(public_launcher.exists())
+            public_text = public_launcher.read_text(encoding="utf-8")
+            self.assertIn('# Managed by rgw_cli_contract local-bin launcher', public_text)
+            self.assertIn(f'exec "{internal_launcher}" "$@"', public_text)
+            version = subprocess.run(
+                [str(public_launcher), '-v'],
+                capture_output=True,
+                text=True,
+                env={**os.environ, 'HOME': str(home_dir)},
+                check=True,
+            )
+            self.assertEqual(version.stdout.strip(), '0.0.0')
+            self.assertIn(f"Manually add to ~/.bashrc if needed: export PATH={public_launcher.parent}:$PATH", result.stdout)
+            self.assertIn(f'[ -r "{home_dir / ".gvim" / "app" / "source" / 'completions_gvim.bash'}" ] && source "{home_dir / ".gvim" / "app" / "source" / 'completions_gvim.bash'}"', result.stdout)
 
 
 if __name__ == "__main__":
