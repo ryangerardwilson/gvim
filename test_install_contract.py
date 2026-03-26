@@ -117,7 +117,6 @@ class InstallContractTests(unittest.TestCase):
             )
             self.assertEqual(version.stdout.strip(), '0.0.0')
             self.assertIn(f"Manually add to ~/.bashrc if needed: export PATH={public_launcher.parent}:$PATH", result.stdout)
-            self.assertIn(f'[ -r "{home_dir / ".gvim" / "app" / "source" / 'completions_gvim.bash'}" ] && source "{home_dir / ".gvim" / "app" / "source" / 'completions_gvim.bash'}"', result.stdout)
 
 
 if __name__ == "__main__":

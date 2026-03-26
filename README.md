@@ -39,12 +39,11 @@ Grab the latest tagged release via the helper script:
 curl -fsSL https://raw.githubusercontent.com/ryangerardwilson/gvim/main/install.sh | bash
 ```
 
-If `~/.local/bin` is not already on your `PATH`, or if you want the installed
-bash completion loader, add these lines to `~/.bashrc` and reload your shell:
+If `~/.local/bin` is not already on your `PATH`, add these lines to
+`~/.bashrc` and reload your shell:
 
 ```bash
 export PATH="$HOME/.local/bin:$PATH"
-[ -r "$HOME/.gvim/app/source/completions_gvim.bash" ] && . "$HOME/.gvim/app/source/completions_gvim.bash"
 source ~/.bashrc
 ```
 
@@ -257,14 +256,6 @@ Leader is `,` followed by a short token. Block commands are prefixed with `b`:
 - `,i` open the index drill
 - `,v` open vault mode
 - `,m` toggle light/dark mode
-
-### Bash completion
-
-The installed source bundle includes `completions_gvim.bash` at
-`~/.gvim/app/source/completions_gvim.bash`. Add the loader to `~/.bashrc`
-manually in the install step above.
-
----
 
 ## Vaults
 

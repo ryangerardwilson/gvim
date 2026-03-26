@@ -53,7 +53,6 @@ launching, browsing, and export scope.
   - `three_template.py` for 3D block HTML boilerplate
   - `three.module.min.js` for bundled Three.js
   - `katex.min.js`, `katex.min.css`, `fonts/` for LaTeX rendering
-  - `completions_gvim.bash` for shell completion
 
 ## Release + packaging workflow
 
@@ -66,7 +65,6 @@ Installer script that:
 - downloads the tagged release bundle or installs from a local tarball
 - installs into `~/.gvim/app`, keeps the internal launcher at `~/.gvim/bin/gvim`, and publishes the user-facing command at `~/.local/bin/gvim`
 - never edits shell startup files automatically
-- ships bash completion from `completions_gvim.bash` and prints the manual loader line
 
 ### `_version.py`
 Single runtime version module for the CLI (`gvim --version`). Keep the

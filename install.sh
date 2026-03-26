@@ -224,8 +224,6 @@ print_manual_shell_steps() {
     print_message info "Manually add to ~/.bashrc if needed: export PATH=$PUBLIC_BIN_DIR:\$PATH"
     printed=true
   fi
-  print_message info "Manually add to ~/.bashrc: [ -r \"${SOURCE_DIR}/completions_gvim.bash\" ] && source \"${SOURCE_DIR}/completions_gvim.bash\""
-  printed=true
   if [[ "$printed" == "true" ]]; then
     print_message info "Reload your shell: source ~/.bashrc"
   fi
