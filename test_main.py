@@ -84,6 +84,12 @@ def test_install_script_prefers_machine_venv_provider() -> None:
     assert 'python3 -m venv "$VENV_DIR"' in script
     assert '"$VENV_DIR/bin/pip" install --disable-pip-version-check -r "${SOURCE_DIR}/requirements.txt"' in script
     assert 'python3-gi' in script
+    assert 'python3-numpy' in script
+    assert 'python3-matplotlib' in script
+    assert 'python3-pandas' in script
     assert 'gir1.2-gtk-4.0' in script
     assert 'python-gobject' in script
+    assert 'python-numpy' in script
+    assert 'python-matplotlib' in script
+    assert 'python-pandas' in script
     assert 'touch "$bashrc"' not in script

@@ -122,6 +122,7 @@ require_sudo() {
 system_deps_ok() {
   type -P python3 >/dev/null 2>&1 || return 1
   command python3 -c "import gi; gi.require_version('Gtk', '4.0')" >/dev/null 2>&1 || return 1
+  command python3 -c "import numpy, matplotlib, pandas" >/dev/null 2>&1 || return 1
   return 0
 }
 
@@ -138,6 +139,9 @@ install_system_deps() {
         python3 \
         python3-venv \
         python3-gi \
+        python3-numpy \
+        python3-matplotlib \
+        python3-pandas \
         gir1.2-gtk-4.0 \
         libgirepository1.0-dev \
         gcc \
@@ -149,6 +153,9 @@ install_system_deps() {
       sudo dnf install -y \
         python3 \
         python3-gobject \
+        python3-numpy \
+        python3-matplotlib \
+        python3-pandas \
         gtk4 \
         gobject-introspection-devel \
         gcc \
@@ -160,6 +167,9 @@ install_system_deps() {
       sudo pacman -S --noconfirm \
         python \
         python-gobject \
+        python-numpy \
+        python-matplotlib \
+        python-pandas \
         gtk4 \
         gobject-introspection \
         gcc \
